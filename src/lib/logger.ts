@@ -5,6 +5,15 @@
 
 type LogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
 
+// Log level priority: error > warn > info > debug
+const LOG_LEVELS: Record<LogLevel, number> = {
+  error: 0,
+  warn: 1,
+  info: 2,
+  log: 3,
+  debug: 4
+};
+
 interface LogEntry {
   level: LogLevel;
   message: string;
@@ -14,17 +23,21 @@ interface LogEntry {
 
 class Logger {
   private isDevelopment: boolean;
+  private minLogLevel: LogLevel;
 
   constructor() {
     this.isDevelopment = process.env.NODE_ENV === 'development';
+    // Set minimum log level from env, default to 'info' in dev, 'warn' in prod
+    this.minLogLevel = (process.env.LOG_LEVEL as LogLevel) || 
+                       (this.isDevelopment ? 'info' : 'warn');
   }
 
   private shouldLog(level: LogLevel): boolean {
     // Always log errors
     if (level === 'error') return true;
     
-    // Only log other levels in development
-    return this.isDevelopment;
+    // Check against minimum log level
+    return LOG_LEVELS[level] <= LOG_LEVELS[this.minLogLevel];
   }
 
   private formatMessage(message: string, data?: unknown): string {

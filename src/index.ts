@@ -163,25 +163,18 @@ app.use('/api/colors', colorRoutes);
 // Error handling middleware - use centralized error handler (must be last)
 app.use(errorHandler);
 
-// Request logging middleware
+// Request logging middleware - only log errors and slow requests
 app.use((req: Request, res: Response, next: NextFunction) => {
-  const timestamp = new Date().toISOString();
   const startTime = Date.now();
   
-  // Log request
-  logger.debug(`${req.method} ${req.originalUrl}`, { 
-    ip: req.ip, 
-    userAgent: req.get('User-Agent')?.substring(0, 50) || 'Unknown' 
-  });
-  
-  // Log response time
   res.on('finish', () => {
     const duration = Date.now() - startTime;
-    const logLevel = res.statusCode >= 400 ? 'error' : res.statusCode >= 300 ? 'warn' : 'debug';
-    logger[logLevel](`${req.method} ${req.originalUrl} - ${res.statusCode} - ${duration}ms`, {
-      statusCode: res.statusCode,
-      duration
-    });
+    // Only log errors (4xx, 5xx) or slow requests (>1000ms)
+    if (res.statusCode >= 400) {
+      logger.error(`${req.method} ${req.originalUrl} - ${res.statusCode} - ${duration}ms`);
+    } else if (duration > 1000) {
+      logger.warn(`Slow request: ${req.method} ${req.originalUrl} - ${duration}ms`);
+    }
   });
   
   next();
@@ -212,47 +205,31 @@ app.use('*', (req: Request, res: Response) => {
 // Start server
 const startServer = async () => {
   try {
-    logger.info('Starting Koshiro Fashion API Server', {
-      environment: process.env.NODE_ENV || 'development',
-      nodeVersion: process.version,
-      memoryUsage: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB'
-    });
-    
     // Validate environment variables
     const requiredEnvVars = ['MONGODB_URI'];
     const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
     
     if (missingEnvVars.length > 0) {
-      logger.error('Missing required environment variables', { missing: missingEnvVars });
-      console.error('❌ Missing required environment variables:', missingEnvVars);
-      console.error('💡 Please check your .env file');
+      console.error('❌ Missing env vars:', missingEnvVars.join(', '));
       process.exit(1);
     }
     
     // Connect to database
-    logger.info('Connecting to database...');
     await connectDB();
-    logger.info('Database connected successfully');
     
-    // Try to start server with automatic port handling
+    // Start server
     await startServerWithPortHandling();
 
   } catch (error) {
-    logger.error('Failed to start server', error);
     console.error('❌ Failed to start server:', error);
-    console.error('💡 Check your database connection and environment variables');
-    console.error('💡 Make sure MongoDB is running and accessible');
     process.exit(1);
   }
 };
 
 const startServerWithPortHandling = async (attemptPort: number = PORT, maxAttempts: number = 5): Promise<void> => {
   return new Promise((resolve, reject) => {
-    console.log(`🔍 Attempting to start server on port ${attemptPort}...`);
-    
-    // Validate port range
     if (attemptPort < 1 || attemptPort > 65535) {
-      reject(new Error(`Invalid port number: ${attemptPort}. Port must be between 1 and 65535.`));
+      reject(new Error(`Invalid port: ${attemptPort}`));
       return;
     }
     
@@ -262,45 +239,24 @@ const startServerWithPortHandling = async (attemptPort: number = PORT, maxAttemp
         ? address.port 
         : attemptPort;
       
-      console.log('\n🚀 ===========================================');
-      console.log('   KOSHIRO FASHION API SERVER STARTED');
-      console.log('🚀 ===========================================');
-      console.log(`📡 Server running on port: ${actualPort}`);
-      console.log(`🌐 API URL: http://localhost:${actualPort}`);
-      console.log(`📱 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:8080'}`);
-      console.log(`💾 Database: ${process.env.MONGODB_URI ? 'Connected' : 'Not configured'}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`⏰ Started at: ${new Date().toISOString()}`);
-      console.log(`🔧 Process ID: ${process.pid}`);
-      console.log(`💾 Memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
-      console.log('🚀 ===========================================\n');
+      console.log(`\n🚀 Koshiro Fashion API running on http://localhost:${actualPort}`);
+      console.log(`   Environment: ${process.env.NODE_ENV || 'development'}\n`);
       resolve();
     });
 
-    // Handle server errors
     server.on('error', (error: NodeJS.ErrnoException) => {
       if (error.code === 'EADDRINUSE') {
-        console.error(`❌ Port ${attemptPort} is already in use`);
-        console.error(`💡 Process using port ${attemptPort}: ${error.message}`);
-        
         if (attemptPort < PORT + maxAttempts) {
-          console.log(`🔄 Trying next port: ${attemptPort + 1}`);
           server = null;
           startServerWithPortHandling(attemptPort + 1, maxAttempts)
             .then(resolve)
             .catch(reject);
         } else {
-          console.error('❌ Could not find an available port after multiple attempts');
-          console.error(`💡 Tried ports: ${PORT} to ${PORT + maxAttempts - 1}`);
-          console.error('💡 Please kill existing processes or use a different port range');
           reject(new Error(`No available ports in range ${PORT}-${PORT + maxAttempts - 1}`));
         }
       } else if (error.code === 'EACCES') {
-        console.error(`❌ Permission denied for port ${attemptPort}`);
-        console.error('💡 Try using a port number above 1024 or run with sudo');
         reject(new Error(`Permission denied for port ${attemptPort}`));
       } else {
-        console.error('❌ Server error:', error);
         reject(error);
       }
     });
@@ -313,36 +269,25 @@ let isShuttingDown = false;
 
 const gracefulShutdown = (signal: string) => {
   if (isShuttingDown) {
-    console.log('🛑 Force shutdown requested...');
     process.exit(1);
   }
   
   isShuttingDown = true;
-  console.log(`\n🛑 ${signal} received, shutting down gracefully...`);
-  console.log(`⏰ Shutdown initiated at: ${new Date().toISOString()}`);
+  console.log(`\n🛑 ${signal} - Shutting down...`);
   
   if (server) {
-    console.log('🔄 Closing HTTP server...');
     server.close((err) => {
       if (err) {
-        console.error('❌ Error closing server:', err);
         process.exit(1);
       }
-      
-      console.log('✅ HTTP server closed');
-      console.log('👋 Koshiro Fashion API Server stopped gracefully');
-      console.log(`⏰ Shutdown completed at: ${new Date().toISOString()}`);
+      console.log('✅ Server stopped');
       process.exit(0);
     });
 
-    // Force close after 15 seconds
     setTimeout(() => {
-      console.error('❌ Could not close connections in time, forcefully shutting down');
-      console.error('💡 Some connections may have been terminated abruptly');
       process.exit(1);
     }, 15000);
   } else {
-    console.log('👋 No server to close, exiting...');
     process.exit(0);
   }
 };
@@ -352,12 +297,7 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error: Error) => {
-  console.error('❌ Uncaught Exception:', error);
-  console.error('📍 Stack trace:', error.stack);
-  console.error('💡 Server will be terminated for safety');
-  console.error('⏰ Exception occurred at:', new Date().toISOString());
-  
-  // Attempt graceful shutdown
+  console.error('❌ Uncaught Exception:', error.message);
   if (server && !isShuttingDown) {
     gracefulShutdown('UNCAUGHT_EXCEPTION');
   } else {
@@ -366,13 +306,8 @@ process.on('uncaughtException', (error: Error) => {
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-  console.error('❌ Unhandled Rejection at:', promise);
-  console.error('📍 Reason:', reason);
-  console.error('💡 Server will be terminated for safety');
-  console.error('⏰ Rejection occurred at:', new Date().toISOString());
-  
-  // Attempt graceful shutdown
+process.on('unhandledRejection', (reason: unknown) => {
+  console.error('❌ Unhandled Rejection:', reason);
   if (server && !isShuttingDown) {
     gracefulShutdown('UNHANDLED_REJECTION');
   } else {
