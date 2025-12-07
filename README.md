@@ -29,7 +29,7 @@ npm install
 2. **Tạo file .env:**
 ```bash
 # MongoDB Connection
-MONGODB_URI=mongodb+srv://trahoangdev:7RMlso6ZQp6OcTtQ@cluster0.zgzpftw.mongodb.net/koshiro-fashion
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database-name
 
 # JWT Secret
 JWT_SECRET=koshiro-fashion-secret-key-2024
