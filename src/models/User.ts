@@ -2,13 +2,16 @@ import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
+  googleId?: string;
+  facebookId?: string;
+  oauthProvider?: 'google' | 'facebook';
   email: string;
-  password: string;
+  password?: string;
   name: string;
   phone?: string;
   address?: string;
   status: 'active' | 'inactive' | 'blocked';
-  role: mongoose.Types.ObjectId; // Reference to Role model
+  role: mongoose.Types.ObjectId | any; // Reference to Role model
   totalOrders: number;
   totalSpent: number;
   lastActive?: Date;
@@ -59,6 +62,9 @@ export interface IUser extends Document {
 }
 
 const userSchema = new Schema<IUser>({
+  googleId: { type: String, sparse: true },
+  facebookId: { type: String, sparse: true },
+  oauthProvider: { type: String, enum: ['google', 'facebook'] },
   email: {
     type: String,
     required: true,
@@ -68,7 +74,7 @@ const userSchema = new Schema<IUser>({
   },
   password: {
     type: String,
-    required: true,
+    required: function (this: any) { return !this.oauthProvider; },
     minlength: 6
   },
   name: {
@@ -208,9 +214,11 @@ const userSchema = new Schema<IUser>({
 });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
+
+  if (!this.password) return next();
+
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -221,7 +229,8 @@ userSchema.pre('save', async function(next) {
 });
 
 // Compare password method
-userSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
+userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+  if (!this.password) return false;
   return bcrypt.compare(candidatePassword, this.password);
 };
 

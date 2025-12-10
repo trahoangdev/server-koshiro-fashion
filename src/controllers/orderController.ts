@@ -30,15 +30,15 @@ export const getOrders = async (req: Request, res: Response) => {
 
     // Build filter object
     const filter: Record<string, unknown> = {};
-    
+
     if (status) {
       filter.status = status;
     }
-    
+
     if (userId) {
       filter.userId = userId;
     }
-    
+
     if (orderNumber) {
       filter.orderNumber = { $regex: orderNumber, $options: 'i' };
     }
@@ -123,7 +123,9 @@ export const getOrder = async (req: AuthRequest, res: Response) => {
 
     // Check if user is authorized to view this order
     const isAdmin = req.user?.role === 'admin';
-    if (!isAdmin && order.userId.toString() !== userId) {
+    const orderUserId = order.userId ? (order.userId as any)._id?.toString() || order.userId.toString() : null;
+
+    if (!isAdmin && orderUserId !== userId) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -173,7 +175,7 @@ export const trackOrderByEmail = async (req: Request, res: Response) => {
     const matchedUserOrders = userOrders.filter(order => order.userId && (order.userId as any).email === email);
 
     // Find guest orders by guestEmail
-    const guestOrders = await Order.find({ 
+    const guestOrders = await Order.find({
       guestEmail: email.toLowerCase().trim(),
       isGuestOrder: true
     })
@@ -202,7 +204,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });
     }
-    
+
     const userRole = req.user.role;
     const {
       userId: requestedUserId,
@@ -256,8 +258,8 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       }
 
       if (product.stock < item.quantity) {
-        return res.status(400).json({ 
-          message: `Insufficient stock for ${product.name}. Available: ${product.stock}` 
+        return res.status(400).json({
+          message: `Insufficient stock for ${product.name}. Available: ${product.stock}`
         });
       }
 
@@ -282,7 +284,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
 
     // Generate unique order number
     const orderNumber = await generateOrderNumber();
-    
+
     // Prepare order data
     const orderData: any = {
       orderNumber,
@@ -301,7 +303,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       if (paymentStatus) orderData.paymentStatus = paymentStatus;
       if (trackingNumber) orderData.trackingNumber = trackingNumber;
     }
-    
+
     const order = new Order(orderData);
 
     await order.save();
@@ -309,7 +311,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     // Update user statistics
     try {
       await User.findByIdAndUpdate(userId, {
-        $inc: { 
+        $inc: {
           totalOrders: 1,
           totalSpent: totalAmount
         }
@@ -381,8 +383,8 @@ export const createGuestOrder = async (req: Request, res: Response) => {
       }
 
       if (product.stock < item.quantity) {
-        return res.status(400).json({ 
-          message: `Insufficient stock for ${product.name}. Available: ${product.stock}` 
+        return res.status(400).json({
+          message: `Insufficient stock for ${product.name}. Available: ${product.stock}`
         });
       }
 
@@ -407,7 +409,7 @@ export const createGuestOrder = async (req: Request, res: Response) => {
 
     // Generate unique order number
     const orderNumber = await generateOrderNumber();
-    
+
     // Prepare order data for guest
     const orderData: any = {
       orderNumber,
@@ -420,7 +422,7 @@ export const createGuestOrder = async (req: Request, res: Response) => {
       paymentMethod,
       notes
     };
-    
+
     const order = new Order(orderData);
     await order.save();
 
@@ -494,8 +496,8 @@ export const cancelOrder = async (req: AuthRequest, res: Response) => {
 
     // Only allow cancellation of pending orders
     if (order.status !== 'pending') {
-      return res.status(400).json({ 
-        message: 'Only pending orders can be cancelled' 
+      return res.status(400).json({
+        message: 'Only pending orders can be cancelled'
       });
     }
 
@@ -512,7 +514,7 @@ export const cancelOrder = async (req: AuthRequest, res: Response) => {
 
     // Update user statistics
     await User.findByIdAndUpdate(order.userId, {
-      $inc: { 
+      $inc: {
         totalOrders: -1,
         totalSpent: -order.totalAmount
       }
@@ -534,10 +536,10 @@ export const deleteOrder = async (req: AuthRequest, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });
     }
-    
+
     const { id } = req.params;
     const userRole = req.user.role;
-    
+
     // Only admin can delete orders
     if (userRole !== 'Admin' && userRole !== 'Super Admin') {
       return res.status(403).json({ message: 'Admin access required' });
@@ -550,8 +552,8 @@ export const deleteOrder = async (req: AuthRequest, res: Response) => {
 
     // Only allow deletion of cancelled orders or very old completed orders
     if (order.status !== 'cancelled' && order.status !== 'completed') {
-      return res.status(400).json({ 
-        message: 'Only cancelled or completed orders can be deleted' 
+      return res.status(400).json({
+        message: 'Only cancelled or completed orders can be deleted'
       });
     }
 
@@ -570,7 +572,7 @@ export const deleteOrder = async (req: AuthRequest, res: Response) => {
     // Update user statistics if needed
     if (order.status === 'completed') {
       await User.findByIdAndUpdate(order.userId, {
-        $inc: { 
+        $inc: {
           totalOrders: -1,
           totalSpent: -order.totalAmount
         }
@@ -592,17 +594,17 @@ export const updateOrder = async (req: AuthRequest, res: Response) => {
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });
     }
-    
+
     const { id } = req.params;
     const userRole = req.user.role;
-    
+
     // Only admin can update orders
     if (userRole !== 'admin') {
       return res.status(403).json({ message: 'Admin access required' });
     }
 
     const updateData = req.body;
-    
+
     // Remove fields that shouldn't be updated directly
     delete updateData._id;
     delete updateData.userId;
@@ -645,13 +647,13 @@ export const getOrderStats = async (req: Request, res: Response) => {
     ]);
 
     const monthlyRevenue = await Order.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           status: 'completed',
-          createdAt: { 
-            $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) 
-          } 
-        } 
+          createdAt: {
+            $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+          }
+        }
       },
       { $group: { _id: null, total: { $sum: '$totalAmount' } } }
     ]);

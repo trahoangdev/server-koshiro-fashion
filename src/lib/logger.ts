@@ -1,142 +1,97 @@
-/**
- * Logger utility for server-side logging
- * Automatically handles development vs production environments
- */
+import winston from 'winston';
+import path from 'path';
 
-type LogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
-
-// Log level priority: error > warn > info > debug
-const LOG_LEVELS: Record<LogLevel, number> = {
+// Define levels and colors
+const levels = {
   error: 0,
   warn: 1,
   info: 2,
-  log: 3,
-  debug: 4
+  http: 3,
+  debug: 4,
 };
 
-interface LogEntry {
-  level: LogLevel;
-  message: string;
-  data?: unknown;
-  timestamp: Date;
-}
+const colors = {
+  error: 'red',
+  warn: 'yellow',
+  info: 'green',
+  http: 'magenta',
+  debug: 'white',
+};
 
-class Logger {
-  private isDevelopment: boolean;
-  private minLogLevel: LogLevel;
+winston.addColors(colors);
 
-  constructor() {
-    this.isDevelopment = process.env.NODE_ENV === 'development';
-    // Set minimum log level from env, default to 'info' in dev, 'warn' in prod
-    this.minLogLevel = (process.env.LOG_LEVEL as LogLevel) || 
-                       (this.isDevelopment ? 'info' : 'warn');
+// Define format
+const format = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+  winston.format.colorize({ all: true }),
+  winston.format.printf(
+    (info) => `${info.timestamp} ${info.level}: ${info.message}`,
+  ),
+);
+
+// Define transports
+const transports = [
+  new winston.transports.Console(),
+  new winston.transports.File({
+    filename: path.join(process.cwd(), 'logs/error.log'),
+    level: 'error',
+    format: winston.format.combine(
+      winston.format.uncolorize(),
+      winston.format.json()
+    )
+  }),
+  new winston.transports.File({
+    filename: path.join(process.cwd(), 'logs/all.log'),
+    format: winston.format.combine(
+      winston.format.uncolorize(),
+      winston.format.json()
+    )
+  }),
+];
+
+// Create logger instance
+const winstonLogger = winston.createLogger({
+  level: process.env.NODE_ENV === 'development' ? 'debug' : 'warn',
+  levels,
+  format,
+  transports,
+});
+
+class LoggerWrapper {
+  public log(message: string, ...args: any[]): void {
+    winstonLogger.info(message, ...args);
   }
 
-  private shouldLog(level: LogLevel): boolean {
-    // Always log errors
-    if (level === 'error') return true;
-    
-    // Check against minimum log level
-    return LOG_LEVELS[level] <= LOG_LEVELS[this.minLogLevel];
+  public info(message: string, ...args: any[]): void {
+    winstonLogger.info(message, ...args);
   }
 
-  private formatMessage(message: string, data?: unknown): string {
-    if (data) {
-      return `${message} ${typeof data === 'object' ? JSON.stringify(data, null, 2) : String(data)}`;
-    }
-    return message;
+  public warn(message: string, ...args: any[]): void {
+    winstonLogger.warn(message, ...args);
   }
 
-  private logInternal(level: LogLevel, message: string, data?: unknown): void {
-    if (!this.shouldLog(level)) return;
-
-    const entry: LogEntry = {
-      level,
-      message,
-      data,
-      timestamp: new Date()
-    };
-
-    // Use appropriate console method
-    switch (level) {
-      case 'error':
-        console.error(`[${entry.timestamp.toISOString()}] ${this.formatMessage(message, data)}`, data || '');
-        break;
-      case 'warn':
-        console.warn(`[${entry.timestamp.toISOString()}] ${this.formatMessage(message, data)}`, data || '');
-        break;
-      case 'info':
-        console.info(`[${entry.timestamp.toISOString()}] ${this.formatMessage(message, data)}`, data || '');
-        break;
-      case 'debug':
-        console.debug(`[${entry.timestamp.toISOString()}] ${this.formatMessage(message, data)}`, data || '');
-        break;
-      default:
-        console.log(`[${entry.timestamp.toISOString()}] ${this.formatMessage(message, data)}`, data || '');
-    }
-
-    // TODO: In production, send to logging service (e.g., Sentry, LogRocket, etc.)
-    // if (!this.isDevelopment && level === 'error') {
-    //   this.sendToLoggingService(entry);
-    // }
-  }
-
-  log(message: string, data?: unknown): void {
-    this.logInternal('log', message, data);
-  }
-
-  info(message: string, data?: unknown): void {
-    this.logInternal('info', message, data);
-  }
-
-  warn(message: string, data?: unknown): void {
-    this.logInternal('warn', message, data);
-  }
-
-  error(message: string, error?: unknown): void {
+  public error(message: string, error?: unknown): void {
     if (error instanceof Error) {
-      this.logInternal('error', message, {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      });
+      winstonLogger.error(`${message} - ${error.message}`, { stack: error.stack });
     } else {
-      this.logInternal('error', message, error);
+      winstonLogger.error(message, { error });
     }
   }
 
-  debug(message: string, data?: unknown): void {
-    this.logInternal('debug', message, data);
+  public debug(message: string, ...args: any[]): void {
+    winstonLogger.debug(message, ...args);
   }
 
-  // Group related logs together
-  group(label: string, callback: () => void): void {
-    if (this.isDevelopment) {
-      console.group(label);
-      callback();
-      console.groupEnd();
-    } else {
-      callback();
-    }
+  public http(message: string, ...args: any[]): void {
+    winstonLogger.http(message, ...args);
   }
 
-  // Time operations
-  time(label: string): void {
-    if (this.isDevelopment) {
-      console.time(label);
-    }
-  }
-
-  timeEnd(label: string): void {
-    if (this.isDevelopment) {
-      console.timeEnd(label);
-    }
-  }
+  // Stub legacy methods
+  public time(label: string): void { }
+  public timeEnd(label: string): void { }
+  public group(label: string, callback: () => void): void { callback(); }
 }
 
-// Export singleton instance
-export const logger = new Logger();
-
-// Export Logger class for testing
-export default Logger;
+export const logger = new LoggerWrapper();
+export default LoggerWrapper;
 

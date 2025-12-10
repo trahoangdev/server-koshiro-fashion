@@ -11,9 +11,12 @@ export interface IApiKey extends Document {
   usageCount: number;
   rateLimit: number;
   expiresAt?: Date;
-  createdBy: string;
+  createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+  isExpired(): boolean;
+  canUse(): boolean;
+  incrementUsage(): Promise<IApiKey>;
 }
 
 const apiKeySchema = new Schema<IApiKey>({
@@ -91,7 +94,7 @@ apiKeySchema.index({ createdBy: 1 });
 apiKeySchema.index({ expiresAt: 1 });
 
 // Pre-save middleware to generate key if not provided
-apiKeySchema.pre('save', function(next) {
+apiKeySchema.pre('save', function (this: IApiKey, next) {
   if (!this.key) {
     // Generate a secure API key
     const crypto = require('crypto');
@@ -101,18 +104,18 @@ apiKeySchema.pre('save', function(next) {
 });
 
 // Method to check if key is expired
-apiKeySchema.methods.isExpired = function(): boolean {
+apiKeySchema.methods.isExpired = function (): boolean {
   if (!this.expiresAt) return false;
   return new Date() > this.expiresAt;
 };
 
 // Method to check if key can be used
-apiKeySchema.methods.canUse = function(): boolean {
+apiKeySchema.methods.canUse = function (): boolean {
   return this.isActive && !this.isExpired();
 };
 
 // Method to increment usage count
-apiKeySchema.methods.incrementUsage = function() {
+apiKeySchema.methods.incrementUsage = function () {
   this.usageCount += 1;
   this.lastUsed = new Date();
   return this.save();

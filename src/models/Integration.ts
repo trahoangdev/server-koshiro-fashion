@@ -18,7 +18,7 @@ export interface IIntegration extends Document {
   errorCount: number;
   successCount: number;
   lastError?: string;
-  createdBy: string;
+  createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -119,7 +119,7 @@ integrationSchema.index({ provider: 1 });
 integrationSchema.index({ createdBy: 1 });
 
 // Method to test connection
-integrationSchema.methods.testConnection = async function(): Promise<boolean> {
+integrationSchema.methods.testConnection = async function (): Promise<boolean> {
   try {
     // This would be implemented based on the integration type
     // For now, we'll just simulate a test
@@ -137,7 +137,7 @@ integrationSchema.methods.testConnection = async function(): Promise<boolean> {
 };
 
 // Method to sync data
-integrationSchema.methods.sync = async function(): Promise<boolean> {
+integrationSchema.methods.sync = async function (): Promise<boolean> {
   try {
     // This would be implemented based on the integration type
     // For now, we'll just simulate a sync

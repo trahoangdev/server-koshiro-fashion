@@ -55,7 +55,7 @@ export const getApiKey = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const apiKey = await ApiKey.findById(id).populate('createdBy', 'name email');
-    
+
     if (!apiKey) {
       return res.status(404).json({
         success: false,
@@ -189,7 +189,7 @@ export const deleteApiKey = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const apiKey = await ApiKey.findById(id);
-    
+
     if (!apiKey) {
       return res.status(404).json({
         success: false,
@@ -217,7 +217,7 @@ export const regenerateApiKey = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const apiKey = await ApiKey.findById(id);
-    
+
     if (!apiKey) {
       return res.status(404).json({
         success: false,
@@ -404,7 +404,7 @@ export const deleteIntegration = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const integration = await Integration.findById(id);
-    
+
     if (!integration) {
       return res.status(404).json({
         success: false,
@@ -432,7 +432,7 @@ export const testIntegration = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const integration = await Integration.findById(id);
-    
+
     if (!integration) {
       return res.status(404).json({
         success: false,
@@ -462,7 +462,7 @@ export const syncIntegration = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const integration = await Integration.findById(id);
-    
+
     if (!integration) {
       return res.status(404).json({
         success: false,
@@ -472,7 +472,7 @@ export const syncIntegration = async (req: Request, res: Response) => {
 
     // Mock sync operation - in real implementation, this would sync with external service
     const result = integration.status === 'active';
-    
+
     // Update lastSync timestamp
     integration.lastSync = new Date();
     await integration.save();
@@ -495,16 +495,16 @@ export const syncIntegration = async (req: Request, res: Response) => {
 // API Logs Management
 export const getApiLogs = async (req: Request, res: Response) => {
   try {
-    const { 
-      page = 1, 
-      limit = 50, 
-      apiKey, 
-      endpoint, 
-      statusCode, 
-      startDate, 
-      endDate 
+    const {
+      page = 1,
+      limit = 50,
+      apiKey,
+      endpoint,
+      statusCode,
+      startDate,
+      endDate
     } = req.query;
-    
+
     const skip = (Number(page) - 1) * Number(limit);
 
     const filter: Record<string, unknown> = {};
@@ -549,12 +549,12 @@ export const getApiLogs = async (req: Request, res: Response) => {
 export const getApiStats = async (req: Request, res: Response) => {
   try {
     const { startDate, endDate } = req.query;
-    
+
     const matchStage: Record<string, unknown> = {};
     if (startDate && endDate) {
-      matchStage.timestamp = { 
-        $gte: new Date(startDate as string), 
-        $lte: new Date(endDate as string) 
+      matchStage.timestamp = {
+        $gte: new Date(startDate as string),
+        $lte: new Date(endDate as string)
       };
     }
 
@@ -679,7 +679,7 @@ export const clearApiLogs = async (req: Request, res: Response) => {
 export const exportApiKeys = async (req: Request, res: Response) => {
   try {
     const { format = 'json', includeInactive = false } = req.query;
-    
+
     const filter: Record<string, unknown> = {};
     if (!includeInactive) {
       filter.isActive = true;
@@ -705,7 +705,7 @@ export const exportApiKeys = async (req: Request, res: Response) => {
         rateLimit: key.rateLimit,
         isActive: key.isActive,
         expiresAt: key.expiresAt,
-        createdBy: key.createdBy,
+        createdBy: key.createdBy as any,
         createdAt: key.createdAt.toISOString()
       })),
       integrations: integrations.map(integration => ({
@@ -721,7 +721,7 @@ export const exportApiKeys = async (req: Request, res: Response) => {
         config: integration.config,
         webhookUrl: integration.webhookUrl,
         createdAt: integration.createdAt.toISOString(),
-        createdBy: integration.createdBy
+        createdBy: integration.createdBy as any
       }))
     };
 
@@ -786,7 +786,7 @@ export const importApiKeys = async (req: Request, res: Response) => {
     for (const keyData of data.apiKeys) {
       try {
         const existingKey = await ApiKey.findOne({ name: keyData.name });
-        
+
         if (existingKey && !overwrite) {
           results.apiKeys.errors++;
           results.errors.push(`API Key "${keyData.name}" already exists`);
@@ -823,7 +823,7 @@ export const importApiKeys = async (req: Request, res: Response) => {
       for (const integrationData of data.integrations) {
         try {
           const existingIntegration = await Integration.findOne({ name: integrationData.name });
-          
+
           if (existingIntegration && !overwrite) {
             results.integrations.errors++;
             results.errors.push(`Integration "${integrationData.name}" already exists`);
@@ -893,10 +893,10 @@ const convertToCSV = (data: ExportData) => {
 
   // Add API Keys
   data.apiKeys.forEach((key) => {
-    const createdByName = typeof key.createdBy === 'string' 
-      ? key.createdBy 
+    const createdByName = typeof key.createdBy === 'string'
+      ? key.createdBy
       : key.createdBy?.name || 'Unknown';
-    
+
     rows.push([
       'API Key',
       key.name,
@@ -909,10 +909,10 @@ const convertToCSV = (data: ExportData) => {
 
   // Add Integrations
   data.integrations.forEach((integration) => {
-    const createdByName = typeof integration.createdBy === 'string' 
-      ? integration.createdBy 
+    const createdByName = typeof integration.createdBy === 'string'
+      ? integration.createdBy
       : integration.createdBy?.name || 'Unknown';
-    
+
     rows.push([
       'Integration',
       integration.name,

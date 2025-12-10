@@ -121,7 +121,7 @@ const seedData = async () => {
         const { default: seedRolesAndPermissions } = await import('./seedRolesAndPermissions');
         await seedRolesAndPermissions();
         console.log('✅ Roles and permissions seeded successfully');
-        
+
         // Refresh role references after seeding
         adminRole = await Role.findOne({ name: 'Admin' });
         customerRole = await Role.findOne({ name: 'Customer' });
@@ -192,7 +192,7 @@ const seedData = async () => {
     for (const colorData of defaultColors) {
       await Color.findOneAndUpdate(
         { name: colorData.name },
-        { 
+        {
           ...colorData,
           isActive: true
         },
@@ -308,7 +308,7 @@ const seedData = async () => {
         descriptionEn: 'Traditional Japanese kimono with hand-embroidered artistry and exclusive patterns',
         descriptionJa: '手刺繍の芸術性と独占的なパターンを持つ本格的な伝統的日本の着物',
         slug: 'kimono',
-        image: '/images/categories/kimono.jpg',
+        image: '/images/categories/kimono.png',
         isActive: true,
         productCount: 0
       },
@@ -320,7 +320,7 @@ const seedData = async () => {
         descriptionEn: 'Light summer yukata with cherry blossom patterns and comfortable designs for all occasions',
         descriptionJa: 'あらゆる機会に適した桜の模様と快適なデザインの軽い夏の浴衣',
         slug: 'yukata',
-        image: '/images/categories/yukata.jpg',
+        image: '/images/categories/kimono.png',
         isActive: true,
         productCount: 0
       },
@@ -332,7 +332,7 @@ const seedData = async () => {
         descriptionEn: 'Premium Japanese fashion tops collection with natural materials and refined designs',
         descriptionJa: '自然素材と洗練されたデザインによる日本のプレミアムファッショントップスコレクション',
         slug: 'tops',
-        image: '/images/categories/tops.jpg',
+        image: '/images/categories/haori.png',
         isActive: true,
         productCount: 0
       },
@@ -344,7 +344,7 @@ const seedData = async () => {
         descriptionEn: 'Japanese fashion bottoms collection with perfect fit and optimal comfort',
         descriptionJa: '完璧なフィットと最適な快適さを備えた日本のファッションボトムスコレクション',
         slug: 'bottoms',
-        image: '/images/categories/bottoms.jpg',
+        image: '/images/categories/quan.png',
         isActive: true,
         productCount: 0
       },
@@ -356,7 +356,7 @@ const seedData = async () => {
         descriptionEn: 'Traditional hakama for formal occasions with premium silk materials and handcrafted construction',
         descriptionJa: 'プレミアムシルク素材と手作りの構造による正式な機会のための伝統的な袴',
         slug: 'hakama',
-        image: '/images/categories/hakama.jpg',
+        image: '/images/categories/hakama.png',
         isActive: true,
         productCount: 0
       },
@@ -368,7 +368,7 @@ const seedData = async () => {
         descriptionEn: 'Elegant haori jackets with silk lining and exquisite embroidered details',
         descriptionJa: 'シルクの裏地と精巧な刺繍の詳細を備えたエレガントな羽織ジャケット',
         slug: 'haori',
-        image: '/images/categories/haori.jpg',
+        image: '/images/categories/haori.png',
         isActive: true,
         productCount: 0
       },
@@ -380,7 +380,7 @@ const seedData = async () => {
         descriptionEn: 'Traditional obi and belt collection with brocade weaving artistry',
         descriptionJa: '錦織りの芸術性を備えた伝統的な帯とベルトのコレクション',
         slug: 'obi-belts',
-        image: '/images/categories/obi.jpg',
+        image: '/images/categories/obi.png',
         isActive: true,
         productCount: 0
       },
@@ -392,7 +392,7 @@ const seedData = async () => {
         descriptionEn: 'Exquisite Japanese fashion accessories - from bags, footwear to traditional jewelry',
         descriptionJa: 'バッグ、履物から伝統的なジュエリーまで、精巧な日本のファッションアクセサリー',
         slug: 'accessories',
-        image: '/images/categories/accessories.jpg',
+        image: '/images/categories/phukien.png',
         isActive: true,
         productCount: 0
       }
@@ -457,7 +457,7 @@ const seedData = async () => {
         isBestSeller: false,
         tags: ['furisode', 'kimono', 'nữ trẻ', 'hoa cúc', 'limited']
       },
-      
+
       // ===== YUKATA =====
       {
         name: 'Yukata Mùa Hè',
@@ -471,7 +471,7 @@ const seedData = async () => {
         originalPrice: 550000,
         categoryId: createdCategories[1]._id, // Yukata
         images: [
-          '/images/products/yukata-summer-1.jpg',  
+          '/images/products/yukata-summer-1.jpg',
           '/images/products/yukata-summer-2.jpg'
         ],
         sizes: ['S', 'M', 'L'],
@@ -511,7 +511,7 @@ const seedData = async () => {
         isBestSeller: false,
         tags: ['yukata', 'nam', 'rồng', 'truyền thống']
       },
-      
+
       // ===== TOPS =====
       {
         name: 'Áo Haori',
@@ -539,7 +539,7 @@ const seedData = async () => {
         isBestSeller: false,
         tags: ['haori', 'áo khoác', 'truyền thống', 'silk']
       },
-      
+
       // ===== BOTTOMS =====
       {
         name: 'Quần Hakama',
@@ -567,7 +567,7 @@ const seedData = async () => {
         isBestSeller: false,
         tags: ['hakama', 'nam', 'truyền thống', 'silk', 'limited']
       },
-      
+
       // ===== ACCESSORIES =====
       {
         name: 'Dép Geta',
@@ -629,10 +629,10 @@ const seedData = async () => {
     // Create inventory data for each product
     const inventoryData = [];
     const stockMovements = [];
-    
+
     for (let i = 0; i < createdProducts.length; i++) {
       const product = createdProducts[i] as unknown as unknown as IProduct;
-      
+
       // Create inventory for each color and size combination
       for (const color of product.colors) {
         for (const size of product.sizes) {
@@ -641,7 +641,7 @@ const seedData = async () => {
           const minStock = Math.floor(currentStock * 0.2); // 20% of current stock
           const maxStock = Math.floor(currentStock * 2); // 200% of current stock
           const reservedStock = Math.floor(Math.random() * 5); // Random reserved between 0-5
-          
+
           const inventoryItem = {
             productId: product._id,
             productName: product.name,
@@ -667,9 +667,9 @@ const seedData = async () => {
             createdAt: new Date(),
             updatedAt: new Date()
           };
-          
+
           inventoryData.push(inventoryItem);
-          
+
           // Create initial stock movement for restocking
           const restockQuantity = Math.floor(currentStock * 1.5); // Initial restock was 150% of current
           stockMovements.push({
@@ -1261,12 +1261,12 @@ const seedData = async () => {
     for (let i = 0; i < createdProducts.length; i++) {
       const product = createdProducts[i] as unknown as IProduct;
       const numReviews = Math.floor(Math.random() * 3) + 2; // 2-4 reviews per product
-      
+
       for (let j = 0; j < numReviews; j++) {
         const template = reviewTemplates[Math.floor(Math.random() * reviewTemplates.length)];
         const userIndex = Math.floor(Math.random() * createdUsers.length);
         const user = createdUsers[userIndex];
-        
+
         // Determine language for review based on user preference
         let title = template.title;
         let comment = template.comment;
@@ -1277,7 +1277,7 @@ const seedData = async () => {
           title = template.titleJa;
           comment = template.commentJa;
         }
-        
+
         reviews.push({
           userId: user._id,
           productId: product._id,

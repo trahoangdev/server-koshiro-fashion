@@ -1,11 +1,12 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import dotenv from 'dotenv';
+import { env } from './config/env';
 import { connectDB } from './config/database';
 import { apiLimiter, authLimiter, adminLimiter, passwordResetLimiter, productLimiter } from './middleware/rateLimit';
 import { logger } from './lib/logger';
 import { errorHandler } from './utils/errorHandler';
+import morgan from 'morgan';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -29,20 +30,10 @@ import roleRoutes from './routes/roles';
 import permissionRoutes from './routes/permissions';
 import colorRoutes from './routes/colors';
 
-// Load environment variables
-dotenv.config();
-
 const app = express();
 
-// Port configuration with validation
-const PORT = (() => {
-  const port = parseInt(process.env.PORT || '3000', 10);
-  if (isNaN(port) || port < 1 || port > 65535) {
-    console.error('❌ Invalid PORT configuration. Using default port 3000.');
-    return 3000;
-  }
-  return port;
-})();
+// Port configuration
+const PORT = env.PORT;
 
 // Middleware
 app.use(helmet({
@@ -58,9 +49,9 @@ app.use(helmet({
 
 // CORS configuration with validation
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:8080',
+  env.FRONTEND_URL || 'http://localhost:8080',
   // Only allow specific localhost ports in development
-  ...(process.env.NODE_ENV === 'development' ? [
+  ...(env.NODE_ENV === 'development' ? [
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:3001',
@@ -68,29 +59,31 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 // Add production frontend URL if provided
-if (process.env.PRODUCTION_FRONTEND_URL) {
-  allowedOrigins.push(process.env.PRODUCTION_FRONTEND_URL);
+if (env.PRODUCTION_FRONTEND_URL) {
+  // @ts-ignore - filter(Boolean) above leaves strings but TS might doubt, actually explicit check handles it.
+  allowedOrigins.push(env.PRODUCTION_FRONTEND_URL);
 }
 
 app.use(cors({
   origin: (origin, callback) => {
     // In production, require origin
-    if (process.env.NODE_ENV === 'production' && !origin) {
+    if (env.NODE_ENV === 'production' && !origin) {
       return callback(new Error('CORS: Origin required in production'), false);
     }
-    
+
     // Allow requests with no origin only in development (for testing tools)
     if (!origin) {
-      if (process.env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development') {
         return callback(null, true);
       }
       return callback(new Error('CORS: Origin required'), false);
     }
-    
+
+    // @ts-ignore
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    
+
     logger.warn(`CORS blocked request from origin: ${origin}`);
     return callback(new Error('Not allowed by CORS'), false);
   },
@@ -115,7 +108,7 @@ app.get('/health', (req: Request, res: Response) => {
     message: 'Koshiro Fashion API is running',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
+    environment: env.NODE_ENV,
     version: process.env.npm_package_version || '1.0.0'
   });
 });
@@ -163,27 +156,19 @@ app.use('/api/colors', colorRoutes);
 // Error handling middleware - use centralized error handler (must be last)
 app.use(errorHandler);
 
-// Request logging middleware - only log errors and slow requests
-app.use((req: Request, res: Response, next: NextFunction) => {
-  const startTime = Date.now();
-  
-  res.on('finish', () => {
-    const duration = Date.now() - startTime;
-    // Only log errors (4xx, 5xx) or slow requests (>1000ms)
-    if (res.statusCode >= 400) {
-      logger.error(`${req.method} ${req.originalUrl} - ${res.statusCode} - ${duration}ms`);
-    } else if (duration > 1000) {
-      logger.warn(`Slow request: ${req.method} ${req.originalUrl} - ${duration}ms`);
-    }
-  });
-  
-  next();
-});
+app.use(morgan(
+  ':method :url :status :res[content-length] - :response-time ms',
+  {
+    stream: {
+      write: (message) => logger.http(message.trim()),
+    },
+  }
+));
 
 // 404 handler
 app.use('*', (req: Request, res: Response) => {
   logger.warn(`404 - Route not found: ${req.method} ${req.originalUrl}`, { ip: req.ip });
-  
+
   res.status(404).json({
     success: false,
     message: 'Route not found',
@@ -205,23 +190,16 @@ app.use('*', (req: Request, res: Response) => {
 // Start server
 const startServer = async () => {
   try {
-    // Validate environment variables
-    const requiredEnvVars = ['MONGODB_URI'];
-    const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
-    
-    if (missingEnvVars.length > 0) {
-      console.error('❌ Missing env vars:', missingEnvVars.join(', '));
-      process.exit(1);
-    }
-    
+    // Environment variables are validated on import of './config/env'
+
     // Connect to database
     await connectDB();
-    
+
     // Start server
     await startServerWithPortHandling();
 
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    logger.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };
@@ -232,15 +210,15 @@ const startServerWithPortHandling = async (attemptPort: number = PORT, maxAttemp
       reject(new Error(`Invalid port: ${attemptPort}`));
       return;
     }
-    
+
     server = app.listen(attemptPort, '0.0.0.0', () => {
       const address = server?.address();
-      const actualPort = (address && typeof address === 'object' && 'port' in address) 
-        ? address.port 
+      const actualPort = (address && typeof address === 'object' && 'port' in address)
+        ? address.port
         : attemptPort;
-      
-      console.log(`\n🚀 Koshiro Fashion API running on http://localhost:${actualPort}`);
-      console.log(`   Environment: ${process.env.NODE_ENV || 'development'}\n`);
+
+      logger.info(`🚀 Koshiro Fashion API running on http://localhost:${actualPort}`);
+      logger.info(`   Environment: ${process.env.NODE_ENV || 'development'}`);
       resolve();
     });
 
@@ -271,16 +249,16 @@ const gracefulShutdown = (signal: string) => {
   if (isShuttingDown) {
     process.exit(1);
   }
-  
+
   isShuttingDown = true;
-  console.log(`\n🛑 ${signal} - Shutting down...`);
-  
+  logger.info(`🛑 ${signal} - Shutting down...`);
+
   if (server) {
     server.close((err) => {
       if (err) {
         process.exit(1);
       }
-      console.log('✅ Server stopped');
+      logger.info('✅ Server stopped');
       process.exit(0);
     });
 
@@ -297,7 +275,7 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error: Error) => {
-  console.error('❌ Uncaught Exception:', error.message);
+  logger.error(`❌ Uncaught Exception: ${error.message}`);
   if (server && !isShuttingDown) {
     gracefulShutdown('UNCAUGHT_EXCEPTION');
   } else {
@@ -307,7 +285,7 @@ process.on('uncaughtException', (error: Error) => {
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason: unknown) => {
-  console.error('❌ Unhandled Rejection:', reason);
+  logger.error('❌ Unhandled Rejection:', reason);
   if (server && !isShuttingDown) {
     gracefulShutdown('UNHANDLED_REJECTION');
   } else {

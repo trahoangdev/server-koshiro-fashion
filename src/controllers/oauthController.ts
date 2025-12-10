@@ -49,7 +49,7 @@ export const googleLogin = asyncHandler(async (req: Request, res: Response) => {
     }
 
     // Find or create user
-    let user = await User.findOne({ 
+    let user = await User.findOne({
       $or: [
         { googleId: googleUser.sub || googleUser.user_id },
         { email: googleUser.email }
@@ -89,9 +89,14 @@ export const googleLogin = asyncHandler(async (req: Request, res: Response) => {
       await user.save();
     }
 
+
+    if (!user) {
+      return res.status(500).json({ message: 'Error finding/creating user' });
+    }
+
     // Get user role name
-    const userRole = typeof user.role === 'string' 
-      ? user.role 
+    const userRole = typeof user.role === 'string'
+      ? user.role
       : (user.role as unknown as IRole)?.name || 'Customer';
 
     // Generate JWT token
@@ -132,7 +137,7 @@ export const facebookLogin = asyncHandler(async (req: Request, res: Response) =>
     }
 
     // Find or create user
-    let user = await User.findOne({ 
+    let user = await User.findOne({
       $or: [
         { facebookId: facebookUser.id },
         { email: facebookUser.email }
@@ -172,9 +177,14 @@ export const facebookLogin = asyncHandler(async (req: Request, res: Response) =>
       await user.save();
     }
 
+
+    if (!user) {
+      return res.status(500).json({ message: 'Error finding/creating user' });
+    }
+
     // Get user role name
-    const userRole = typeof user.role === 'string' 
-      ? user.role 
+    const userRole = typeof user.role === 'string'
+      ? user.role
       : (user.role as unknown as IRole)?.name || 'Customer';
 
     // Generate JWT token
