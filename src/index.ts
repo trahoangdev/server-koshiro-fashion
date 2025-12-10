@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import mongoSanitize from 'express-mongo-sanitize';
+const xss = require('xss-clean');
 import { env } from './config/env';
 import { connectDB } from './config/database';
 import { apiLimiter, authLimiter, adminLimiter, passwordResetLimiter, productLimiter } from './middleware/rateLimit';
@@ -43,8 +45,17 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      upgradeInsecureRequests: [],
     },
   },
+  crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow cross-origin resource sharing for API
+  hsts: env.NODE_ENV === 'production' ? {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  } : false,
 }));
 
 // CORS configuration with validation
@@ -99,6 +110,18 @@ app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // Apply general API rate limiting
 app.use('/api', apiLimiter);
+
+// Data Sanitization again NoSQL Injection
+app.use(mongoSanitize());
+
+
+// Data Sanitization against XSS
+app.use(xss());
+
+// Swagger API Documentation
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger';
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {

@@ -10,17 +10,17 @@ const { IPromotion } = require('../models/Promotion');
 // @access  Public
 export const getPromotions = asyncHandler(async (req: Request, res: Response) => {
   const { page = 1, limit = 10, isActive, type, search } = req.query;
-  
+
   const query: any = {};
-  
+
   if (isActive !== undefined) {
     query.isActive = isActive === 'true';
   }
-  
+
   if (type) {
     query.type = type;
   }
-  
+
   if (search) {
     query.$or = [
       { name: { $regex: search, $options: 'i' } },
@@ -164,7 +164,7 @@ export const updatePromotion = asyncHandler(async (req: Request, res: Response) 
 
   // Check if code already exists (excluding current promotion)
   if (code) {
-    const existingPromotion = await Promotion.findOne({ 
+    const existingPromotion = await Promotion.findOne({
       code: code.toUpperCase(),
       _id: { $ne: req.params.id }
     });
@@ -288,9 +288,10 @@ export const getPromotionStats = asyncHandler(async (req: Request, res: Response
 // @route   POST /api/promotions/validate
 // @access  Public
 export const validatePromotionCode = asyncHandler(async (req: Request, res: Response) => {
-  const { code, userId, orderAmount } = req.body;
+  const { code, userId, orderAmount, orderValue } = req.body;
+  const amount = orderAmount || orderValue || 0;
 
-  const promotion = await Promotion.findOne({ 
+  const promotion = await Promotion.findOne({
     code: code.toUpperCase(),
     isActive: true
   }).populate('applicableProducts', 'name price')
@@ -306,10 +307,10 @@ export const validatePromotionCode = asyncHandler(async (req: Request, res: Resp
 
   // Check if promotion is valid (check dates and usage)
   const now = new Date();
-  if (!promotion.isActive || 
-      promotion.startDate > now || 
-      promotion.endDate < now ||
-      (promotion.usageLimit && promotion.usedCount >= promotion.usageLimit)) {
+  if (!promotion.isActive ||
+    promotion.startDate > now ||
+    promotion.endDate < now ||
+    (promotion.usageLimit && promotion.usedCount >= promotion.usageLimit)) {
     return res.status(400).json({
       success: false,
       message: 'Promotion is not valid or has expired'
@@ -317,7 +318,7 @@ export const validatePromotionCode = asyncHandler(async (req: Request, res: Resp
   }
 
   // Check minimum order amount
-  if (promotion.minOrderAmount && orderAmount < promotion.minOrderAmount) {
+  if (promotion.minOrderAmount && amount < promotion.minOrderAmount) {
     return res.status(400).json({
       success: false,
       message: `Minimum order amount is ${promotion.minOrderAmount}`
@@ -340,12 +341,12 @@ export const validatePromotionCode = asyncHandler(async (req: Request, res: Resp
   // Calculate discount
   let discountAmount = 0;
   if (promotion.type === 'percentage') {
-    discountAmount = (orderAmount * promotion.value) / 100;
+    discountAmount = (amount * promotion.value) / 100;
     if (promotion.maxDiscountAmount) {
       discountAmount = Math.min(discountAmount, promotion.maxDiscountAmount);
     }
   } else if (promotion.type === 'fixed') {
-    discountAmount = Math.min(promotion.value, orderAmount);
+    discountAmount = Math.min(promotion.value, amount);
   } else if (promotion.type === 'free_shipping') {
     discountAmount = 0; // Free shipping logic would be handled elsewhere
   }
@@ -355,7 +356,7 @@ export const validatePromotionCode = asyncHandler(async (req: Request, res: Resp
     data: {
       promotion,
       discountAmount: Math.round(discountAmount * 100) / 100,
-      finalAmount: Math.max(0, orderAmount - discountAmount)
+      finalAmount: Math.max(0, amount - discountAmount)
     }
   });
 });

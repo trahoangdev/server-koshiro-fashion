@@ -244,21 +244,7 @@ export const createCategory = asyncHandler(async (req: Request, res: Response) =
       schemaMarkup
     } = req.body;
 
-    // Validate required fields
-    if (!name || !slug) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name and slug are required'
-      });
-    }
 
-    // Validate slug format
-    if (!/^[a-z0-9-]+$/.test(slug)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Slug must contain only lowercase letters, numbers, and hyphens'
-      });
-    }
 
     // Check if slug already exists
     const existingCategory = await Category.findOne({ slug });
@@ -364,15 +350,10 @@ export const updateCategory = asyncHandler(async (req: Request, res: Response) =
     }
 
     // Validate slug format if being updated
-    if (updateData.slug) {
-      if (!/^[a-z0-9-]+$/.test(updateData.slug)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Slug must contain only lowercase letters, numbers, and hyphens'
-        });
-      }
 
-      // Check if slug already exists (excluding current category)
+
+    // Check if slug already exists (excluding current category)
+    if (updateData.slug) {
       const slugExists = await Category.findOne({
         slug: updateData.slug,
         _id: { $ne: id }

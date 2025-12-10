@@ -13,6 +13,8 @@ import {
 } from '../controllers/categoryController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import { uploadCategoryImages, handleUploadError } from '../middleware/upload';
+import { validate } from '../middleware/validate';
+import { createCategorySchema, updateCategorySchema } from '../validations/categoryValidation';
 
 const router = express.Router();
 
@@ -24,22 +26,22 @@ router.get('/:id', getCategory);
 router.get('/:id/products', getCategoryWithProducts);
 
 // Admin routes (protected)
-router.post('/', authenticateToken, requireAdmin, createCategory);
-router.put('/:id', authenticateToken, requireAdmin, updateCategory);
+router.post('/', authenticateToken, requireAdmin, validate(createCategorySchema), createCategory);
+router.put('/:id', authenticateToken, requireAdmin, validate(updateCategorySchema), updateCategory);
 router.delete('/:id', authenticateToken, requireAdmin, deleteCategory);
 
 // Category image upload routes
-router.post('/:id/upload-images', 
-  authenticateToken, 
-  requireAdmin, 
+router.post('/:id/upload-images',
+  authenticateToken,
+  requireAdmin,
   uploadCategoryImages.array('images', 5),
   handleUploadError,
   uploadCategoryImagesController
 );
 
-router.delete('/:id/images/:publicId', 
-  authenticateToken, 
-  requireAdmin, 
+router.delete('/:id/images/:publicId',
+  authenticateToken,
+  requireAdmin,
   deleteCategoryImageController
 );
 
