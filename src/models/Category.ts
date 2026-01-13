@@ -96,7 +96,6 @@ const categorySchema = new Schema<ICategory>({
     required: true,
     lowercase: true,
     trim: true,
-    unique: false // Remove unique from schema, use index instead
   },
   // Legacy image fields
   image: {

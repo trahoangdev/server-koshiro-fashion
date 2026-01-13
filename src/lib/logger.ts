@@ -1,4 +1,5 @@
 import winston from 'winston';
+import 'winston-daily-rotate-file';
 import path from 'path';
 
 // Define levels and colors
@@ -20,8 +21,8 @@ const colors = {
 
 winston.addColors(colors);
 
-// Define format
-const format = winston.format.combine(
+// Define formats
+const consoleFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
   winston.format.colorize({ all: true }),
   winston.format.printf(
@@ -29,23 +30,39 @@ const format = winston.format.combine(
   ),
 );
 
+const fileFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+  winston.format.errors({ stack: true }), // Include stack trace
+  winston.format.uncolorize(),
+  winston.format.json()
+);
+
 // Define transports
 const transports = [
-  new winston.transports.Console(),
-  new winston.transports.File({
-    filename: path.join(process.cwd(), 'logs/error.log'),
-    level: 'error',
-    format: winston.format.combine(
-      winston.format.uncolorize(),
-      winston.format.json()
-    )
+  // Console transport
+  new winston.transports.Console({
+    format: consoleFormat,
   }),
-  new winston.transports.File({
-    filename: path.join(process.cwd(), 'logs/all.log'),
-    format: winston.format.combine(
-      winston.format.uncolorize(),
-      winston.format.json()
-    )
+
+  // Rotating File transport for errors
+  new winston.transports.DailyRotateFile({
+    filename: path.join(process.cwd(), 'logs/error-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    zippedArchive: true,
+    maxSize: '20m',
+    maxFiles: '14d',
+    level: 'error',
+    format: fileFormat,
+  }),
+
+  // Rotating File transport for all logs
+  new winston.transports.DailyRotateFile({
+    filename: path.join(process.cwd(), 'logs/all-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    zippedArchive: true,
+    maxSize: '20m',
+    maxFiles: '14d', // Keep logs for 14 days
+    format: fileFormat,
   }),
 ];
 
@@ -53,7 +70,6 @@ const transports = [
 const winstonLogger = winston.createLogger({
   level: process.env.NODE_ENV === 'development' ? 'debug' : 'warn',
   levels,
-  format,
   transports,
 });
 
@@ -72,7 +88,8 @@ class LoggerWrapper {
 
   public error(message: string, error?: unknown): void {
     if (error instanceof Error) {
-      winstonLogger.error(`${message} - ${error.message}`, { stack: error.stack });
+      // Pass error object as metadata so 'errors' format can capture stack
+      winstonLogger.error(message, { error, stack: error.stack });
     } else {
       winstonLogger.error(message, { error });
     }

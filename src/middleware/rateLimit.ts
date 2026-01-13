@@ -40,6 +40,7 @@ const shouldSkipRateLimit = (req: Request): boolean => {
   return isLocalhost || isHealthCheck;
 };
 
+
 /**
  * Safe key generator dealing with potential IPv6 issues
  * Returns req.ip or string "unknown"
@@ -75,7 +76,10 @@ export const apiLimiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   handler: commonRateLimitResponse,
   skip: shouldSkipRateLimit,
-  keyGenerator: safeKeyGenerator
+  keyGenerator: safeKeyGenerator,
+  validate: {
+    trustProxy: false
+  }
 });
 
 /**
@@ -114,6 +118,9 @@ export const authLimiter = rateLimit({
     const email = req.body?.email || req.body?.username || '';
     const ip = req.ip || 'unknown';
     return `${ip}-${email}`;
+  },
+  validate: {
+    trustProxy: false
   }
 });
 
@@ -136,7 +143,10 @@ export const adminLimiter = rateLimit({
   legacyHeaders: false,
   handler: commonRateLimitResponse,
   skip: shouldSkipRateLimit,
-  keyGenerator: safeKeyGenerator
+  keyGenerator: safeKeyGenerator,
+  validate: {
+    trustProxy: false
+  }
 });
 
 /**
@@ -165,7 +175,10 @@ export const passwordResetLimiter = rateLimit({
     });
   },
   skip: shouldSkipRateLimit,
-  keyGenerator: safeKeyGenerator
+  keyGenerator: safeKeyGenerator,
+  validate: {
+    trustProxy: false
+  }
 });
 
 /**
@@ -194,5 +207,8 @@ export const productLimiter = rateLimit({
     });
   },
   skip: shouldSkipRateLimit,
-  keyGenerator: safeKeyGenerator
+  keyGenerator: safeKeyGenerator,
+  validate: {
+    trustProxy: false
+  }
 });
