@@ -19,8 +19,8 @@ export const getColors = asyncHandler(async (req: Request, res: Response) => {
   const transformedColors = colors.map(color => ({
     _id: color._id,
     name: language === 'en' ? (color.nameEn || color.name) :
-          language === 'ja' ? (color.nameJa || color.name) :
-          color.name,
+      language === 'ja' ? (color.nameJa || color.name) :
+        color.name,
     nameEn: color.nameEn,
     nameJa: color.nameJa,
     hexValue: color.hexValue,
@@ -72,7 +72,7 @@ export const createColor = asyncHandler(async (req: Request, res: Response) => {
   // Escape special regex characters in name
   const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const trimmedName = name.trim();
-  
+
   // Primary check: exact match on base name (case-insensitive)
   const existingColor = await Color.findOne({
     name: { $regex: new RegExp(`^${escapeRegex(trimmedName)}$`, 'i') }
@@ -99,7 +99,7 @@ export const createColor = asyncHandler(async (req: Request, res: Response) => {
   });
 
   await color.save();
-  
+
   logger.info(`Color created successfully: ${color.name} (${color.hexValue})`);
 
   res.status(201).json({
@@ -185,7 +185,7 @@ export const deleteColor = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Check if color is being used by any products
-  const Product = (await import('../models/Product')).default;
+  const Product = (await import('../models/Product')).Product;
   const productsUsingColor = await Product.distinct('_id', {
     colors: { $in: [color.name] }
   });

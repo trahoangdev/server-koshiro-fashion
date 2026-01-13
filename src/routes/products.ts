@@ -13,6 +13,8 @@ import {
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import { uploadProductImages as uploadMiddleware, handleUploadError } from '../middleware/upload';
 import { productLimiter } from '../middleware/rateLimit';
+import { validate } from '../middleware/validate';
+import { createProductSchema, updateProductSchema } from '../validations/productValidation';
 
 const router = express.Router();
 
@@ -23,8 +25,9 @@ router.get('/search', productLimiter, searchProducts);
 router.get('/:id', productLimiter, getProduct);
 
 // Admin routes (protected)
-router.post('/', authenticateToken, requireAdmin, uploadMiddleware.array('images', 10), handleUploadError, createProduct);
-router.put('/:id', authenticateToken, requireAdmin, updateProduct);
+// Note: validate(createProductSchema) is placed AFTER parsing multipart/form-data because req.body is populated by multer
+router.post('/', authenticateToken, requireAdmin, uploadMiddleware.array('images', 10), handleUploadError, validate(createProductSchema), createProduct);
+router.put('/:id', authenticateToken, requireAdmin, validate(updateProductSchema), updateProduct);
 router.delete('/:id', authenticateToken, requireAdmin, deleteProduct);
 
 // Image management routes

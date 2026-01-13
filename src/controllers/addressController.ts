@@ -3,17 +3,10 @@ import { asyncHandler } from '../middleware/auth';
 import { User } from '../models/User';
 import mongoose from 'mongoose';
 
-// Define the auth request interface
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: string;
-  };
-}
+
 
 // Get user addresses
-export const getUserAddresses = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const getUserAddresses = asyncHandler(async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });
@@ -45,7 +38,7 @@ export const getUserAddresses = asyncHandler(async (req: AuthRequest, res: Respo
 });
 
 // Add new address
-export const addAddress = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const addAddress = asyncHandler(async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });
@@ -100,7 +93,7 @@ export const addAddress = asyncHandler(async (req: AuthRequest, res: Response) =
 });
 
 // Update address
-export const updateAddress = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const updateAddress = asyncHandler(async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });
@@ -153,7 +146,7 @@ export const updateAddress = asyncHandler(async (req: AuthRequest, res: Response
 });
 
 // Delete address
-export const deleteAddress = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const deleteAddress = asyncHandler(async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });
@@ -189,7 +182,7 @@ export const deleteAddress = asyncHandler(async (req: AuthRequest, res: Response
 });
 
 // Set default address
-export const setDefaultAddress = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const setDefaultAddress = asyncHandler(async (req: Request, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });

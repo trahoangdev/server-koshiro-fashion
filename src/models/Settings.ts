@@ -15,44 +15,47 @@ export interface ISettings extends Document {
   timezone: string;
   currency: string;
   language: string;
-  
+
   // Notification Settings
   emailNotifications: boolean;
   orderNotifications: boolean;
   stockNotifications: boolean;
   customerNotifications: boolean;
   adminNotifications: boolean;
-  
+
   // Security Settings
   sessionTimeout: number; // in minutes
   passwordMinLength: number;
   requireTwoFactor: boolean;
   maxLoginAttempts: number;
   enableCaptcha: boolean;
-  
+
   // Payment Settings
   stripeEnabled: boolean;
   paypalEnabled: boolean;
   cashOnDelivery: boolean;
   bankTransfer: boolean;
-  
+
   // Shipping Settings
   freeShippingThreshold: number;
   defaultShippingCost: number;
   enableTracking: boolean;
   shippingZones: IShippingZone[];
-  
+
   // Appearance Settings
   theme: string; // 'light' | 'dark' | 'auto'
   primaryColor: string;
   logoUrl: string;
   faviconUrl: string;
-  
+
+  // Banners
+  banners: Record<string, string>;
+
   // System Settings (legacy fields for backward compatibility)
   enableDarkMode: boolean;
   maintenanceMode: boolean;
   debugMode: boolean;
-  
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -116,7 +119,7 @@ const settingsSchema = new Schema<ISettings>({
     default: 'vi',
     enum: ['vi', 'en', 'ja']
   },
-  
+
   // Notification Settings
   emailNotifications: {
     type: Boolean,
@@ -138,7 +141,7 @@ const settingsSchema = new Schema<ISettings>({
     type: Boolean,
     default: true
   },
-  
+
   // Security Settings
   sessionTimeout: {
     type: Number,
@@ -166,7 +169,7 @@ const settingsSchema = new Schema<ISettings>({
     type: Boolean,
     default: true
   },
-  
+
   // Payment Settings
   stripeEnabled: {
     type: Boolean,
@@ -184,7 +187,7 @@ const settingsSchema = new Schema<ISettings>({
     type: Boolean,
     default: true
   },
-  
+
   // Shipping Settings
   freeShippingThreshold: {
     type: Number,
@@ -208,7 +211,7 @@ const settingsSchema = new Schema<ISettings>({
       { name: 'Other Cities', cost: 80000 }
     ]
   },
-  
+
   // Appearance Settings
   theme: {
     type: String,
@@ -230,7 +233,31 @@ const settingsSchema = new Schema<ISettings>({
     default: '/favicon.ico',
     trim: true
   },
-  
+
+  banners: {
+    type: Map,
+    of: String,
+    default: {
+      about: '/images/banners/banner-04.png',
+      faq: '/images/banners/banner-05.png',
+      terms: '/images/banners/banner-06.png',
+      shipping: '/images/banners/banner-07.png',
+      returns: '/images/banners/banner-08.png',
+      contact: '/images/banners/banner-09.png',
+      privacy: '/images/banners/banner-10.png',
+      sizeGuide: '/images/banners/banner-11.png',
+      reviews: '/images/banners/banner-12.png',
+      wishlist: '/images/banners/banner-13.png',
+      tracking: '/images/banners/banner-03.png',
+      compare: '/images/banners/banner-02.png',
+      products: '/images/banners/banner-01.png',
+      sale: '/images/banners/banner-04.png',
+      categories: '/images/banners/banner-04.png',
+      search: '/images/banners/banner-04.png',
+      home: '/images/banners/banner-01.png'
+    }
+  },
+
   // System Settings (legacy fields)
   enableDarkMode: {
     type: Boolean,

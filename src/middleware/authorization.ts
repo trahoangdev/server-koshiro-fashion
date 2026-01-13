@@ -4,15 +4,7 @@ import Role, { IRole } from '../models/Role';
 import Permission, { IPermission } from '../models/Permission';
 
 // Extend Request interface to include user with role
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    name: string;
-    role: string;
-    permissions?: string[];
-  };
-}
+
 
 // Type definitions for better type safety
 interface PopulatedUser extends Omit<IUser, 'role'> {
@@ -36,11 +28,11 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 async function getUserPermissionsWithCache(userId: string): Promise<string[]> {
   const cached = userPermissionCache.get(userId);
   const now = Date.now();
-  
+
   if (cached && (now - cached.timestamp) < CACHE_TTL) {
     return cached.permissions;
   }
-  
+
   try {
     const user = await User.findById(userId)
       .populate({
@@ -50,18 +42,18 @@ async function getUserPermissionsWithCache(userId: string): Promise<string[]> {
           model: 'Permission'
         }
       }) as PopulatedUser | null;
-    
+
     if (!user || !user.role) {
       return [];
     }
-    
+
     const permissions = (user.role.permissions as unknown as IPermission[])
       .filter((permission: IPermission) => permission.isActive)
       .map((permission: IPermission) => `${permission.resource}:${permission.action}`);
-    
+
     // Cache the result
     userPermissionCache.set(userId, { permissions, timestamp: now });
-    
+
     return permissions;
   } catch (error) {
     console.error('Error getting user permissions:', error);
@@ -88,7 +80,7 @@ export function clearUserPermissionCache(userId?: string): void {
  * @returns Middleware function
  */
 export const requirePermission = (resource: string, action: string) => {
-  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Validate input parameters
       if (!resource || !action) {
@@ -131,8 +123,8 @@ export const requirePermission = (resource: string, action: string) => {
       }
 
       // Check if user has the required permission
-      const hasPermission = (user.role.permissions as unknown as IPermission[]).some((permission: IPermission) => 
-        permission.resource.toLowerCase() === resource.toLowerCase() && 
+      const hasPermission = (user.role.permissions as unknown as IPermission[]).some((permission: IPermission) =>
+        permission.resource.toLowerCase() === resource.toLowerCase() &&
         permission.action.toLowerCase() === action.toLowerCase() &&
         permission.isActive
       );
@@ -168,7 +160,7 @@ export const requirePermission = (resource: string, action: string) => {
  * @returns Middleware function
  */
 export const requireAnyPermission = (permissions: PermissionCheck[]) => {
-  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Validate input parameters
       if (!permissions || !Array.isArray(permissions) || permissions.length === 0) {
@@ -211,9 +203,9 @@ export const requireAnyPermission = (permissions: PermissionCheck[]) => {
       }
 
       // Check if user has any of the required permissions
-      const hasAnyPermission = permissions.some(requiredPerm => 
-        (user.role.permissions as unknown as IPermission[]).some((permission: IPermission) => 
-          permission.resource.toLowerCase() === requiredPerm.resource.toLowerCase() && 
+      const hasAnyPermission = permissions.some(requiredPerm =>
+        (user.role.permissions as unknown as IPermission[]).some((permission: IPermission) =>
+          permission.resource.toLowerCase() === requiredPerm.resource.toLowerCase() &&
           permission.action.toLowerCase() === requiredPerm.action.toLowerCase() &&
           permission.isActive
         )
@@ -251,7 +243,7 @@ export const requireAnyPermission = (permissions: PermissionCheck[]) => {
  * @returns Middleware function
  */
 export const requireAllPermissions = (permissions: PermissionCheck[]) => {
-  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Validate input parameters
       if (!permissions || !Array.isArray(permissions) || permissions.length === 0) {
@@ -294,9 +286,9 @@ export const requireAllPermissions = (permissions: PermissionCheck[]) => {
       }
 
       // Check if user has all of the required permissions
-      const hasAllPermissions = permissions.every(requiredPerm => 
-        (user.role.permissions as unknown as IPermission[]).some((permission: IPermission) => 
-          permission.resource.toLowerCase() === requiredPerm.resource.toLowerCase() && 
+      const hasAllPermissions = permissions.every(requiredPerm =>
+        (user.role.permissions as unknown as IPermission[]).some((permission: IPermission) =>
+          permission.resource.toLowerCase() === requiredPerm.resource.toLowerCase() &&
           permission.action.toLowerCase() === requiredPerm.action.toLowerCase() &&
           permission.isActive
         )
@@ -334,7 +326,7 @@ export const requireAllPermissions = (permissions: PermissionCheck[]) => {
  * @returns Middleware function
  */
 export const requireRoleLevel = (minLevel: number) => {
-  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Validate input parameters
       if (typeof minLevel !== 'number' || minLevel < 0 || minLevel > 100) {
@@ -452,8 +444,8 @@ export const hasPermission = (user: PopulatedUser | null, resource: string, acti
     return false;
   }
 
-  return (user.role.permissions as unknown as IPermission[]).some((permission: IPermission) => 
-    permission.resource.toLowerCase() === resource.toLowerCase() && 
+  return (user.role.permissions as unknown as IPermission[]).some((permission: IPermission) =>
+    permission.resource.toLowerCase() === resource.toLowerCase() &&
     permission.action.toLowerCase() === action.toLowerCase() &&
     permission.isActive
   );
@@ -485,9 +477,9 @@ export const hasAnyPermission = (user: PopulatedUser | null, permissions: Permis
     return false;
   }
 
-  return permissions.some(requiredPerm => 
-    (user.role.permissions as unknown as IPermission[]).some((permission: IPermission) => 
-      permission.resource.toLowerCase() === requiredPerm.resource.toLowerCase() && 
+  return permissions.some(requiredPerm =>
+    (user.role.permissions as unknown as IPermission[]).some((permission: IPermission) =>
+      permission.resource.toLowerCase() === requiredPerm.resource.toLowerCase() &&
       permission.action.toLowerCase() === requiredPerm.action.toLowerCase() &&
       permission.isActive
     )
@@ -505,9 +497,9 @@ export const hasAllPermissions = (user: PopulatedUser | null, permissions: Permi
     return false;
   }
 
-  return permissions.every(requiredPerm => 
-    (user.role.permissions as unknown as IPermission[]).some((permission: IPermission) => 
-      permission.resource.toLowerCase() === requiredPerm.resource.toLowerCase() && 
+  return permissions.every(requiredPerm =>
+    (user.role.permissions as unknown as IPermission[]).some((permission: IPermission) =>
+      permission.resource.toLowerCase() === requiredPerm.resource.toLowerCase() &&
       permission.action.toLowerCase() === requiredPerm.action.toLowerCase() &&
       permission.isActive
     )

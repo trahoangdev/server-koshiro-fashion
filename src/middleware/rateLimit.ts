@@ -9,35 +9,53 @@ const shouldSkipRateLimit = (req: Request): boolean => {
   if (process.env.NODE_ENV === 'development') {
     return true;
   }
-  
+
   // Skip for localhost/IPs
   const ip = req.ip || req.socket.remoteAddress || '';
-  const isLocalhost = ip === '127.0.0.1' || 
-                      ip === '::1' || 
-                      ip === '::ffff:127.0.0.1' ||
-                      ip.startsWith('192.168.') ||
-                      ip.startsWith('10.') ||
-                      ip.startsWith('172.16.') ||
-                      ip.startsWith('172.17.') ||
-                      ip.startsWith('172.18.') ||
-                      ip.startsWith('172.19.') ||
-                      ip.startsWith('172.20.') ||
-                      ip.startsWith('172.21.') ||
-                      ip.startsWith('172.22.') ||
-                      ip.startsWith('172.23.') ||
-                      ip.startsWith('172.24.') ||
-                      ip.startsWith('172.25.') ||
-                      ip.startsWith('172.26.') ||
-                      ip.startsWith('172.27.') ||
-                      ip.startsWith('172.28.') ||
-                      ip.startsWith('172.29.') ||
-                      ip.startsWith('172.30.') ||
-                      ip.startsWith('172.31.');
-  
+  const isLocalhost = ip === '127.0.0.1' ||
+    ip === '::1' ||
+    ip === '::ffff:127.0.0.1' ||
+    ip.startsWith('192.168.') ||
+    ip.startsWith('10.') ||
+    ip.startsWith('172.16.') ||
+    ip.startsWith('172.17.') ||
+    ip.startsWith('172.18.') ||
+    ip.startsWith('172.19.') ||
+    ip.startsWith('172.20.') ||
+    ip.startsWith('172.21.') ||
+    ip.startsWith('172.22.') ||
+    ip.startsWith('172.23.') ||
+    ip.startsWith('172.24.') ||
+    ip.startsWith('172.25.') ||
+    ip.startsWith('172.26.') ||
+    ip.startsWith('172.27.') ||
+    ip.startsWith('172.28.') ||
+    ip.startsWith('172.29.') ||
+    ip.startsWith('172.30.') ||
+    ip.startsWith('172.31.');
+
   // Skip for health checks
   const isHealthCheck = req.path === '/health' || req.path === '/api/status';
-  
+
   return isLocalhost || isHealthCheck;
+};
+
+
+/**
+ * Safe key generator dealing with potential IPv6 issues
+ * Returns req.ip or string "unknown"
+ */
+const safeKeyGenerator = (req: Request): string => {
+  return req.ip || 'unknown';
+};
+
+const commonRateLimitResponse = (req: Request, res: Response) => {
+  res.status(429).json({
+    success: false,
+    message: 'Too many requests from this IP, please try again later.',
+    retryAfter: 15 * 60,
+    timestamp: new Date().toISOString()
+  });
 };
 
 /**
@@ -56,15 +74,12 @@ export const apiLimiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  handler: (req: Request, res: Response) => {
-    res.status(429).json({
-      success: false,
-      message: 'Too many requests from this IP, please try again later.',
-      retryAfter: 15 * 60,
-      timestamp: new Date().toISOString()
-    });
-  },
-  skip: shouldSkipRateLimit
+  handler: commonRateLimitResponse,
+  skip: shouldSkipRateLimit,
+  keyGenerator: safeKeyGenerator,
+  validate: {
+    trustProxy: false
+  }
 });
 
 /**
@@ -94,18 +109,18 @@ export const authLimiter = rateLimit({
   },
   skip: shouldSkipRateLimit,
   // Use IP + email for more granular rate limiting
-  // Note: For production, consider using ipKeyGenerator from express-rate-limit for IPv6 compatibility
   keyGenerator: (req: Request) => {
     // Skip rate limiting for localhost/development - return unique key to bypass
     if (shouldSkipRateLimit(req)) {
       return `${Date.now()}-${Math.random()}`;
     }
-    
+
     const email = req.body?.email || req.body?.username || '';
-    // Use req.ip which is already normalized by express
-    // For IPv6 compatibility in production, install and use: import { ipKeyGenerator } from 'express-rate-limit'
     const ip = req.ip || 'unknown';
     return `${ip}-${email}`;
+  },
+  validate: {
+    trustProxy: false
   }
 });
 
@@ -126,15 +141,12 @@ export const adminLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req: Request, res: Response) => {
-    res.status(429).json({
-      success: false,
-      message: 'Too many requests from this IP, please try again later.',
-      retryAfter: 15 * 60,
-      timestamp: new Date().toISOString()
-    });
-  },
-  skip: shouldSkipRateLimit
+  handler: commonRateLimitResponse,
+  skip: shouldSkipRateLimit,
+  keyGenerator: safeKeyGenerator,
+  validate: {
+    trustProxy: false
+  }
 });
 
 /**
@@ -162,7 +174,11 @@ export const passwordResetLimiter = rateLimit({
       timestamp: new Date().toISOString()
     });
   },
-  skip: shouldSkipRateLimit
+  skip: shouldSkipRateLimit,
+  keyGenerator: safeKeyGenerator,
+  validate: {
+    trustProxy: false
+  }
 });
 
 /**
@@ -190,6 +206,9 @@ export const productLimiter = rateLimit({
       timestamp: new Date().toISOString()
     });
   },
-  skip: shouldSkipRateLimit
+  skip: shouldSkipRateLimit,
+  keyGenerator: safeKeyGenerator,
+  validate: {
+    trustProxy: false
+  }
 });
-

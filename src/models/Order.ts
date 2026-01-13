@@ -3,7 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IOrderItem {
   productId: mongoose.Types.ObjectId;
   name: string;
-  nameVi: string;
+  nameVi?: string;
   quantity: number;
   price: number;
   size?: string;
@@ -23,18 +23,30 @@ export interface IOrder extends Document {
     phone: string;
     address: string;
     city: string;
-    district: string;
+    district?: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
   };
   billingAddress?: {
     name: string;
     phone: string;
     address: string;
     city: string;
-    district: string;
+    district?: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
   };
   paymentMethod: string;
   paymentStatus: 'pending' | 'paid' | 'failed';
   notes?: string;
+  couponCode?: string;
+  referralCode?: string;
+  subtotal?: number;
+  discountAmount?: number;
+  shippingCost?: number;
+  taxAmount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,7 +63,7 @@ const orderItemSchema = new Schema<IOrderItem>({
   },
   nameVi: {
     type: String,
-    required: true
+    required: false // Relaxed requirement to prevent validation errors
   },
   quantity: {
     type: Number,
@@ -90,7 +102,19 @@ const addressSchema = new Schema({
   },
   district: {
     type: String,
-    required: true
+    required: false // Made optional as frontend provides state instead
+  },
+  state: {
+    type: String,
+    required: false
+  },
+  zipCode: {
+    type: String,
+    required: false
+  },
+  country: {
+    type: String,
+    required: false
   }
 });
 
@@ -143,13 +167,34 @@ const orderSchema = new Schema<IOrder>({
   },
   notes: {
     type: String
+  },
+  couponCode: {
+    type: String
+  },
+  referralCode: {
+    type: String
+  },
+  subtotal: {
+    type: Number
+  },
+  discountAmount: {
+    type: Number,
+    default: 0
+  },
+  shippingCost: {
+    type: Number,
+    default: 0
+  },
+  taxAmount: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true
 });
 
 // Validation: Either userId or guestEmail must be provided
-orderSchema.pre('validate', function(next) {
+orderSchema.pre('validate', function (next) {
   const doc = this as unknown as IOrder;
   if (!doc.userId && !doc.guestEmail) {
     const error = new Error('Either userId or guestEmail is required');
@@ -184,23 +229,23 @@ export const generateOrderNumber = async (): Promise<string> => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  
+
   // Get count of orders today
   const todayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const todayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
-  
+
   // Use a more robust approach to avoid race conditions
   let attempt = 0;
   let orderNumber;
   let isUnique = false;
-  
+
   while (!isUnique && attempt < 10) {
     const count = await mongoose.model('Order').countDocuments({
       createdAt: { $gte: todayStart, $lt: todayEnd }
     });
-    
+
     orderNumber = `ORD${year}${month}${day}${String(count + 1 + attempt).padStart(3, '0')}`;
-    
+
     // Check if this order number already exists
     const existingOrder = await mongoose.model('Order').findOne({ orderNumber });
     if (!existingOrder) {
@@ -209,11 +254,11 @@ export const generateOrderNumber = async (): Promise<string> => {
       attempt++;
     }
   }
-  
+
   if (!isUnique) {
     throw new Error('Unable to generate unique order number after 10 attempts');
   }
-  
+
   return orderNumber!;
 };
 
