@@ -110,6 +110,7 @@ export const googleLogin = asyncHandler(async (req: Request, res: Response) => {
       message: 'Google login successful',
       token: jwtToken,
       user: {
+        _id: user._id,
         id: user._id,
         email: user.email,
         name: user.name,
@@ -198,6 +199,7 @@ export const facebookLogin = asyncHandler(async (req: Request, res: Response) =>
       message: 'Facebook login successful',
       token: jwtToken,
       user: {
+        _id: user._id,
         id: user._id,
         email: user.email,
         name: user.name,

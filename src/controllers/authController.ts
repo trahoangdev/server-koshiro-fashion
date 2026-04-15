@@ -519,8 +519,15 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
   user.resetPasswordExpires = resetTokenExpiry;
   await user.save();
 
-  // Send email
-  await emailService.sendPasswordResetEmail(email, resetToken);
+  // Send email. If delivery cannot be queued, do not leave a usable reset token behind.
+  try {
+    await emailService.sendPasswordResetEmail(email, resetToken);
+  } catch (error) {
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+    throw error;
+  }
 
   res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
 });
