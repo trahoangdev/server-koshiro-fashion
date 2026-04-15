@@ -10,6 +10,37 @@ import { Review } from '../models/Review';
 import { logger } from '../lib/logger';
 import { clearUserPermissionCache } from '../middleware/authorization';
 
+const getMonthKey = (date: Date): string => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+const getDayKey = (date: Date): string => date.toISOString().slice(0, 10);
+const clampNumber = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
+
+const parseBoundedDateRange = (
+  startDateValue: unknown,
+  endDateValue: unknown,
+  maxDays = 366
+): { startDate: Date; endDate: Date; error?: string } => {
+  const startDate = new Date(String(startDateValue || ''));
+  const endDate = new Date(String(endDateValue || ''));
+
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    return { startDate, endDate, error: 'Valid startDate and endDate are required' };
+  }
+
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+
+  if (startDate > endDate) {
+    return { startDate, endDate, error: 'startDate must be before endDate' };
+  }
+
+  const daySpan = Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
+  if (daySpan > maxDays) {
+    return { startDate, endDate, error: `Date range must not exceed ${maxDays} days` };
+  }
+
+  return { startDate, endDate };
+};
+
 // Helper function to update product count for categories
 const updateCategoryProductCount = async (categoryId: string) => {
   try {
@@ -40,12 +71,11 @@ export const getAdminStats = asyncHandler(async (req: Request, res: Response) =>
     const totalUsers = await User.countDocuments();
     // logger.debug(`Admin stats - Total users: ${totalUsers}`);
 
-    // Calculate total revenue
-    // logger.debug('Admin stats - Getting completed orders...');
-    const completedOrders = await Order.find({ status: 'completed' });
-    // logger.debug(`Admin stats - Completed orders count: ${completedOrders.length}`);
-
-    const totalRevenue = completedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const revenueResult = await Order.aggregate([
+      { $match: { status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const totalRevenue = revenueResult[0]?.total || 0;
     // logger.debug(`Admin stats - Total revenue: ${totalRevenue}`);
 
 
@@ -250,9 +280,7 @@ export const getAdminUsers = asyncHandler(async (req: Request, res: Response) =>
 export const getRevenueData = asyncHandler(async (req: Request, res: Response) => {
   // logger.debug('Getting revenue data for chart...');
 
-  // Get last 6 months of revenue data
-  const months = [];
-  const revenueData = [];
+  const monthRanges = [];
 
   for (let i = 5; i >= 0; i--) {
     const startDate = new Date();
@@ -267,21 +295,41 @@ export const getRevenueData = asyncHandler(async (req: Request, res: Response) =
 
     const monthName = startDate.toLocaleDateString('en-US', { month: 'short' });
 
-    // Get orders for this month
-    const monthOrders = await Order.find({
-      status: 'completed',
-      createdAt: { $gte: startDate, $lte: endDate }
-    });
-
-    const monthRevenue = monthOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-    const monthOrderCount = monthOrders.length;
-
-    revenueData.push({
+    monthRanges.push({
+      key: getMonthKey(startDate),
       month: monthName,
-      revenue: monthRevenue,
-      orders: monthOrderCount
+      startDate,
+      endDate
     });
   }
+
+  const firstMonth = monthRanges[0].startDate;
+  const lastMonth = monthRanges[monthRanges.length - 1].endDate;
+  const monthlyRevenue = await Order.aggregate([
+    {
+      $match: {
+        status: 'completed',
+        createdAt: { $gte: firstMonth, $lte: lastMonth }
+      }
+    },
+    {
+      $group: {
+        _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+        revenue: { $sum: '$totalAmount' },
+        orders: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const revenueByMonth = new Map(monthlyRevenue.map((item) => [item._id, item]));
+  const revenueData = monthRanges.map(({ key, month }) => {
+    const item = revenueByMonth.get(key);
+    return {
+      month,
+      revenue: item?.revenue || 0,
+      orders: item?.orders || 0
+    };
+  });
 
   // logger.debug('Revenue data:', revenueData);
   res.json(revenueData);
@@ -290,42 +338,54 @@ export const getRevenueData = asyncHandler(async (req: Request, res: Response) =
 export const getProductStats = asyncHandler(async (req: Request, res: Response) => {
   // logger.debug('Getting product statistics...');
 
-  // Get all categories with their products and revenue
-  const categories = await Category.find({ isActive: true });
-  const productStats = [];
-
-  for (const category of categories) {
-    // Get products in this category
-    const products = await Product.find({
-      categoryId: category._id,
-      isActive: true
-    });
-
-    // Get orders with products from this category
-    const productIds = products.map(p => p._id);
-    const orders = await Order.find({
-      status: 'completed',
-      'items.productId': { $in: productIds }
-    });
-
-    // Calculate revenue for this category
-    let categoryRevenue = 0;
-    for (const order of orders) {
-      for (const item of order.items) {
-        // Use proper type assertion for mongoose ObjectId comparison
-        const product = products.find(p => String(p._id) === String(item.productId));
-        if (product) {
-          categoryRevenue += item.price * item.quantity;
-        }
+  const productCounts = await Product.aggregate([
+    { $match: { isActive: true } },
+    { $group: { _id: '$categoryId', count: { $sum: 1 } } },
+    {
+      $lookup: {
+        from: 'categories',
+        localField: '_id',
+        foreignField: '_id',
+        as: 'category'
+      }
+    },
+    { $unwind: '$category' },
+    { $match: { 'category.isActive': true } },
+    {
+      $project: {
+        categoryId: '$_id',
+        category: '$category.name',
+        count: 1
       }
     }
+  ]);
 
-    productStats.push({
-      category: category.name,
-      count: products.length,
-      revenue: categoryRevenue
-    });
-  }
+  const revenueByCategory = await Order.aggregate([
+    { $match: { status: 'completed' } },
+    { $unwind: '$items' },
+    {
+      $lookup: {
+        from: 'products',
+        localField: 'items.productId',
+        foreignField: '_id',
+        as: 'product'
+      }
+    },
+    { $unwind: '$product' },
+    {
+      $group: {
+        _id: '$product.categoryId',
+        revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }
+      }
+    }
+  ]);
+
+  const revenueMap = new Map(revenueByCategory.map((item) => [String(item._id), item.revenue]));
+  const productStats = productCounts.map((item) => ({
+    category: item.category,
+    count: item.count,
+    revenue: revenueMap.get(String(item.categoryId)) || 0
+  }));
 
   // Sort by revenue descending
   productStats.sort((a, b) => b.revenue - a.revenue);
@@ -697,13 +757,25 @@ export const generateReport = asyncHandler(async (req: Request, res: Response) =
 
   switch (type) {
     case 'sales':
-      reportData = await generateSalesReport(startDate, endDate);
+      {
+        const range = parseBoundedDateRange(startDate, endDate);
+        if (range.error) {
+          return res.status(400).json({ message: range.error });
+        }
+        reportData = await generateSalesReport(range.startDate, range.endDate);
+      }
       break;
     case 'inventory':
       reportData = await generateInventoryReport();
       break;
     case 'users':
-      reportData = await generateUserReport(startDate, endDate);
+      {
+        const range = parseBoundedDateRange(startDate, endDate);
+        if (range.error) {
+          return res.status(400).json({ message: range.error });
+        }
+        reportData = await generateUserReport(range.startDate, range.endDate);
+      }
       break;
     default:
       return res.status(400).json({ message: 'Invalid report type' });
@@ -720,9 +792,9 @@ export const generateReport = asyncHandler(async (req: Request, res: Response) =
   }
 });
 // Helper functions
-const generateSalesReport = async (startDate: string, endDate: string) => {
+const generateSalesReport = async (startDate: Date, endDate: Date) => {
   const orders = await Order.find({
-    createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) }
+    createdAt: { $gte: startDate, $lte: endDate }
   }).populate('userId', 'name email');
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
@@ -741,7 +813,7 @@ const generateSalesReport = async (startDate: string, endDate: string) => {
 };
 
 const generateInventoryReport = async () => {
-  const products = await Product.find().populate('categoryId', 'name');
+  const products = await Product.find().populate('categoryId', 'name').limit(5000);
 
   const totalProducts = products.length;
   const activeProducts = products.filter(p => p.isActive).length;
@@ -757,9 +829,9 @@ const generateInventoryReport = async () => {
   };
 };
 
-const generateUserReport = async (startDate: string, endDate: string) => {
+const generateUserReport = async (startDate: Date, endDate: Date) => {
   const users = await User.find({
-    createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) }
+    createdAt: { $gte: startDate, $lte: endDate }
   });
 
   const totalUsers = users.length;
@@ -951,28 +1023,51 @@ export const getCustomerAnalytics = asyncHandler(async (req: Request, res: Respo
   // Get daily customer activity (last 30 days)
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
 
+  const newCustomersByDay = await User.aggregate([
+    { $match: { createdAt: { $gte: thirtyDaysAgo, $lte: todayEnd } } },
+    {
+      $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const activeCustomersByDay = await Order.aggregate([
+    { $match: { createdAt: { $gte: thirtyDaysAgo, $lte: todayEnd }, userId: { $ne: null } } },
+    {
+      $group: {
+        _id: {
+          day: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          userId: '$userId'
+        }
+      }
+    },
+    {
+      $group: {
+        _id: '$_id.day',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const newCustomersMap = new Map(newCustomersByDay.map((item) => [item._id, item.count]));
+  const activeCustomersMap = new Map(activeCustomersByDay.map((item) => [item._id, item.count]));
   const dailyActivity = [];
   for (let i = 29; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     date.setHours(0, 0, 0, 0);
-
-    const nextDate = new Date(date);
-    nextDate.setDate(nextDate.getDate() + 1);
-
-    const newCustomers = await User.countDocuments({
-      createdAt: { $gte: date, $lt: nextDate }
-    });
-
-    const activeCustomers = await Order.distinct('userId', {
-      createdAt: { $gte: date, $lt: nextDate }
-    });
+    const key = getDayKey(date);
 
     dailyActivity.push({
       date: `${i + 1}`,
-      newCustomers,
-      activeCustomers: activeCustomers.length
+      newCustomers: newCustomersMap.get(key) || 0,
+      activeCustomers: activeCustomersMap.get(key) || 0
     });
   }
 
@@ -1015,10 +1110,19 @@ export const getSalesAnalytics = asyncHandler(async (req: Request, res: Response
   const totalCarts = totalOrders + abandonedCarts;
   const cartAbandonment = totalCarts > 0 ? (abandonedCarts / totalCarts) * 100 : 0;
 
-  // Calculate average order value
-  const completedOrders = await Order.find({ status: 'completed' });
-  const totalRevenue = completedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-  const averageOrderValue = completedOrders.length > 0 ? totalRevenue / completedOrders.length : 0;
+  const averageOrderValueData = await Order.aggregate([
+    { $match: { status: 'completed' } },
+    {
+      $group: {
+        _id: null,
+        totalRevenue: { $sum: '$totalAmount' },
+        totalOrders: { $sum: 1 }
+      }
+    }
+  ]);
+  const totalRevenue = averageOrderValueData[0]?.totalRevenue || 0;
+  const completedOrders = averageOrderValueData[0]?.totalOrders || 0;
+  const averageOrderValue = completedOrders > 0 ? totalRevenue / completedOrders : 0;
 
   res.json({
     byPaymentMethod: paymentMethodData,
@@ -1115,31 +1219,41 @@ export const getProductAnalytics = asyncHandler(async (req: Request, res: Respon
 });
 // Daily Revenue Data
 export const getDailyRevenueData = asyncHandler(async (req: Request, res: Response) => {
-  const days = parseInt(req.query.days as string) || 30;
+  const days = clampNumber(parseInt(req.query.days as string) || 30, 1, 366);
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
 
+  const revenueByDay = await Order.aggregate([
+    {
+      $match: {
+        status: 'completed',
+        createdAt: { $gte: startDate, $lte: endDate }
+      }
+    },
+    {
+      $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+        revenue: { $sum: '$totalAmount' },
+        orders: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const revenueMap = new Map(revenueByDay.map((item) => [item._id, item]));
   const dailyData = [];
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     date.setHours(0, 0, 0, 0);
-
-    const nextDate = new Date(date);
-    nextDate.setDate(nextDate.getDate() + 1);
-
-    const dayOrders = await Order.find({
-      status: 'completed',
-      createdAt: { $gte: date, $lt: nextDate }
-    });
-
-    const dayRevenue = dayOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const item = revenueMap.get(getDayKey(date));
 
     dailyData.push({
       date: `${i + 1}`,
-      revenue: dayRevenue,
-      orders: dayOrders.length
+      revenue: item?.revenue || 0,
+      orders: item?.orders || 0
     });
   }
 

@@ -5,6 +5,8 @@ import CloudinaryService from '../services/cloudinaryService';
 import { asyncHandler, errors } from '../utils/errorHandler';
 import { logger } from '../lib/logger';
 
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Helper function to update badge statuses based on creation date and tags
 const updateBadgeStatuses = async () => {
   try {
@@ -146,7 +148,7 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
   // Build search query - improved search logic
   if (search && search.toString().trim()) {
     const searchTerm = search.toString().trim();
-    const searchRegex = new RegExp(searchTerm, 'i');
+    const searchRegex = new RegExp(escapeRegExp(searchTerm), 'i');
     filter.$or = [
       { name: searchRegex },
       { nameEn: searchRegex },
@@ -472,16 +474,19 @@ export const getFeaturedProducts = asyncHandler(async (req: Request, res: Respon
 export const searchProducts = asyncHandler(async (req: Request, res: Response) => {
   const { q, limit = 10 } = req.query;
 
-  if (!q) {
+  const searchTerm = q?.toString().trim();
+  if (!searchTerm) {
     throw errors.badRequest('Search query required');
   }
 
+  const limitNum = Math.min(Math.max(parseInt(limit as string, 10) || 10, 1), 50);
+
   const products = await Product.find({
-    $text: { $search: q as string },
+    $text: { $search: searchTerm },
     isActive: true
   })
     .populate('categoryId', 'name nameEn nameJa slug')
-    .limit(parseInt(limit as string))
+    .limit(limitNum)
     .sort({ score: { $meta: 'textScore' } });
 
   res.json({ products });
