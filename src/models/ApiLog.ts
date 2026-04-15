@@ -18,13 +18,11 @@ export interface IApiLog extends Document {
 const apiLogSchema = new Schema<IApiLog>({
   apiKey: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
   endpoint: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
   method: {
     type: String,
@@ -33,8 +31,7 @@ const apiLogSchema = new Schema<IApiLog>({
   },
   statusCode: {
     type: Number,
-    required: true,
-    index: true
+    required: true
   },
   responseTime: {
     type: Number,
@@ -43,8 +40,7 @@ const apiLogSchema = new Schema<IApiLog>({
   },
   ipAddress: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
   userAgent: {
     type: String,
@@ -62,8 +58,7 @@ const apiLogSchema = new Schema<IApiLog>({
   },
   timestamp: {
     type: Date,
-    default: Date.now,
-    index: true
+    default: Date.now
   }
 }, {
   timestamps: false // We're using custom timestamp field
@@ -74,7 +69,6 @@ apiLogSchema.index({ apiKey: 1, timestamp: -1 });
 apiLogSchema.index({ endpoint: 1, timestamp: -1 });
 apiLogSchema.index({ statusCode: 1, timestamp: -1 });
 apiLogSchema.index({ ipAddress: 1, timestamp: -1 });
-apiLogSchema.index({ timestamp: -1 });
 
 // TTL index to automatically delete logs older than 30 days
 apiLogSchema.index({ timestamp: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
