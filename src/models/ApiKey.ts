@@ -27,9 +27,7 @@ const apiKeySchema = new Schema<IApiKey>({
     maxlength: 100
   },
   key: {
-    type: String,
-    unique: true,
-    index: true
+    type: String
   },
   description: {
     type: String,
@@ -88,7 +86,7 @@ const apiKeySchema = new Schema<IApiKey>({
 });
 
 // Indexes for better performance
-apiKeySchema.index({ key: 1 });
+apiKeySchema.index({ key: 1 }, { unique: true });
 apiKeySchema.index({ isActive: 1 });
 apiKeySchema.index({ createdBy: 1 });
 apiKeySchema.index({ expiresAt: 1 });
