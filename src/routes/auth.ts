@@ -1,5 +1,6 @@
 import express from 'express';
 import { register, login, adminLogin, getProfile, updateProfile, forgotPassword, resetPassword, changePassword, deleteAccount } from '../controllers/authController';
+import { googleLogin, facebookLogin } from '../controllers/oauthController';
 import { getUserAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress } from '../controllers/addressController';
 import { authenticateToken } from '../middleware/auth';
 import { authLimiter, passwordResetLimiter } from '../middleware/rateLimit';
@@ -53,6 +54,8 @@ router.post('/register', authLimiter, validate(registerSchema), register);
  */
 router.post('/login', authLimiter, validate(loginSchema), login);
 router.post('/admin/login', authLimiter, validate(adminLoginSchema), adminLogin);
+router.post('/google', authLimiter, googleLogin);
+router.post('/facebook', authLimiter, facebookLogin);
 router.post('/forgot-password', passwordResetLimiter, validate(forgotPasswordSchema), forgotPassword);
 router.post('/reset-password', passwordResetLimiter, validate(resetPasswordSchema), resetPassword);
 

@@ -15,7 +15,7 @@ export interface IOrder extends Document {
   userId?: mongoose.Types.ObjectId; // Optional for guest orders
   guestEmail?: string; // Email for guest orders
   isGuestOrder?: boolean; // Flag to identify guest orders
-  status: 'pending' | 'processing' | 'completed' | 'cancelled';
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'returned' | 'refunded';
   items: IOrderItem[];
   totalAmount: number;
   shippingAddress: {
@@ -39,7 +39,7 @@ export interface IOrder extends Document {
     country?: string;
   };
   paymentMethod: string;
-  paymentStatus: 'pending' | 'paid' | 'failed';
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
   notes?: string;
   couponCode?: string;
   referralCode?: string;
@@ -140,7 +140,7 @@ const orderSchema = new Schema<IOrder>({
   },
   status: {
     type: String,
-    enum: ['pending', 'processing', 'completed', 'cancelled'],
+    enum: ['pending', 'processing', 'shipped', 'delivered', 'completed', 'cancelled', 'returned', 'refunded'],
     default: 'pending'
   },
   items: [orderItemSchema],
@@ -162,7 +162,7 @@ const orderSchema = new Schema<IOrder>({
   },
   paymentStatus: {
     type: String,
-    enum: ['pending', 'paid', 'failed'],
+    enum: ['pending', 'paid', 'failed', 'refunded'],
     default: 'pending'
   },
   notes: {

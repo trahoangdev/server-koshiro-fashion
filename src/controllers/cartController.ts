@@ -12,6 +12,27 @@ interface PopulatedProduct {
   [key: string]: unknown;
 }
 
+const normalizeVariant = (value?: string) => (value || '').trim();
+
+const findCartItemIndex = (
+  items: Array<{ productId: { toString(): string }; size?: string; color?: string }>,
+  productId: string,
+  size?: string,
+  color?: string
+) => {
+  const normalizedSize = normalizeVariant(size);
+  const normalizedColor = normalizeVariant(color);
+  const hasVariant = size !== undefined || color !== undefined;
+
+  return items.findIndex((item) => {
+    if (item.productId.toString() !== productId) return false;
+    if (!hasVariant) return true;
+
+    return normalizeVariant(item.size) === normalizedSize &&
+      normalizeVariant(item.color) === normalizedColor;
+  });
+};
+
 export const getCart = asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
     
@@ -76,23 +97,26 @@ export const addToCart = asyncHandler(async (req: Request, res: Response) => {
       cart = new Cart({ userId, items: [] });
     }
 
-    // Check if product already in cart
-    const existingItemIndex = cart.items.findIndex(
-      item => item.productId.toString() === productId
-    );
+    // Check if the exact product variant is already in cart
+    const existingItemIndex = findCartItemIndex(cart.items, productId, size, color);
 
     if (existingItemIndex > -1) {
+      const nextQuantity = cart.items[existingItemIndex].quantity + quantity;
+      if (product.stock < nextQuantity) {
+        return res.status(400).json({ message: 'Insufficient stock' });
+      }
+
       // Update existing item
-      cart.items[existingItemIndex].quantity += quantity;
-      if (size) cart.items[existingItemIndex].size = size;
-      if (color) cart.items[existingItemIndex].color = color;
+      cart.items[existingItemIndex].quantity = nextQuantity;
+      cart.items[existingItemIndex].size = normalizeVariant(size) || undefined;
+      cart.items[existingItemIndex].color = normalizeVariant(color) || undefined;
     } else {
       // Add new item
       cart.items.push({
         productId,
         quantity,
-        size,
-        color
+        size: normalizeVariant(size) || undefined,
+        color: normalizeVariant(color) || undefined
       });
     }
 
@@ -113,12 +137,10 @@ export const updateCartItem = asyncHandler(async (req: Request, res: Response) =
       return res.status(404).json({ message: 'Cart not found' });
     }
 
-    const itemIndex = cart.items.findIndex(
-      item => item.productId.toString() === productId
-    );
+    const itemIndex = findCartItemIndex(cart.items, productId, size, color);
 
     if (itemIndex === -1) {
-      return res.status(404).json({ message: 'Product not found in cart' });
+      return res.status(404).json({ message: 'Product variant not found in cart' });
     }
 
     // Check stock if updating quantity
@@ -131,11 +153,11 @@ export const updateCartItem = asyncHandler(async (req: Request, res: Response) =
     }
 
     if (size !== undefined) {
-      cart.items[itemIndex].size = size;
+      cart.items[itemIndex].size = normalizeVariant(size) || undefined;
     }
 
     if (color !== undefined) {
-      cart.items[itemIndex].color = color;
+      cart.items[itemIndex].color = normalizeVariant(color) || undefined;
     }
 
     await cart.save();
@@ -144,18 +166,17 @@ export const updateCartItem = asyncHandler(async (req: Request, res: Response) =
 export const removeFromCart = asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as Request & { user: { id: string } }).user.id;
     const { productId } = req.params;
+    const { size, color } = req.body || {};
 
     const cart = await Cart.findOne({ userId });
     if (!cart) {
       return res.status(404).json({ message: 'Cart not found' });
     }
 
-    const itemIndex = cart.items.findIndex(
-      item => item.productId.toString() === productId
-    );
+    const itemIndex = findCartItemIndex(cart.items, productId, size, color);
 
     if (itemIndex === -1) {
-      return res.status(404).json({ message: 'Product not found in cart' });
+      return res.status(404).json({ message: 'Product variant not found in cart' });
     }
 
     cart.items.splice(itemIndex, 1);
