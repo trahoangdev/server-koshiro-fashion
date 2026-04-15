@@ -329,15 +329,34 @@ productSchema.index({ weight: 1 });
 productSchema.index({ materials: 1 });
 
 // Search indexes for better performance
-// productSchema.index({ name: 1 });
-// productSchema.index({ nameEn: 1 });
-// productSchema.index({ nameJa: 1 });
-// productSchema.index({ description: 1 });
-// productSchema.index({ descriptionEn: 1 });
-// productSchema.index({ descriptionJa: 1 });
-// productSchema.index({ metaTitle: 1 });
-// productSchema.index({ metaDescription: 1 });
-
+productSchema.index(
+  {
+    name: 'text',
+    nameEn: 'text',
+    nameJa: 'text',
+    description: 'text',
+    descriptionEn: 'text',
+    descriptionJa: 'text',
+    tags: 'text',
+    metaTitle: 'text',
+    metaDescription: 'text'
+  },
+  {
+    name: 'product_text_search',
+    weights: {
+      name: 10,
+      nameEn: 10,
+      nameJa: 10,
+      tags: 8,
+      metaTitle: 6,
+      description: 3,
+      descriptionEn: 3,
+      descriptionJa: 3,
+      metaDescription: 2
+    },
+    default_language: 'none'
+  }
+);
 
 // Compound indexes for complex queries
 productSchema.index({ categoryId: 1, isActive: 1 });
