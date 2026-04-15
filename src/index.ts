@@ -31,6 +31,8 @@ import flashSaleRoutes from './routes/flashSale';
 import roleRoutes from './routes/roles';
 import permissionRoutes from './routes/permissions';
 import colorRoutes from './routes/colors';
+import uploadRoutes from './routes/upload';
+import apiKeyRoutes from './routes/apiKeys';
 
 const app = express();
 
@@ -118,13 +120,22 @@ app.use(mongoSanitize());
 // Data Sanitization against XSS
 app.use(xss());
 
+app.use(morgan(
+  ':method :url :status :res[content-length] - :response-time ms',
+  {
+    stream: {
+      write: (message) => logger.http(message.trim()),
+    },
+  }
+));
+
 // Swagger API Documentation
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger';
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+const healthHandler = (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
     status: 'OK',
@@ -134,7 +145,10 @@ app.get('/health', (req: Request, res: Response) => {
     environment: env.NODE_ENV,
     version: process.env.npm_package_version || '1.0.0'
   });
-});
+};
+
+app.get('/health', healthHandler);
+app.get('/api/health', healthHandler);
 
 // API status endpoint
 app.get('/api/status', (req: Request, res: Response) => {
@@ -175,18 +189,8 @@ app.use('/api/flash-sales', flashSaleRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/colors', colorRoutes);
-
-// Error handling middleware - use centralized error handler (must be last)
-app.use(errorHandler);
-
-app.use(morgan(
-  ':method :url :status :res[content-length] - :response-time ms',
-  {
-    stream: {
-      write: (message) => logger.http(message.trim()),
-    },
-  }
-));
+app.use('/api/upload', uploadRoutes);
+app.use('/api/admin/api', apiKeyRoutes);
 
 // 404 handler
 app.use('*', (req: Request, res: Response) => {
@@ -209,6 +213,9 @@ app.use('*', (req: Request, res: Response) => {
     }
   });
 });
+
+// Error handling middleware - use centralized error handler (must be last)
+app.use(errorHandler);
 
 // Start server
 const startServer = async () => {
