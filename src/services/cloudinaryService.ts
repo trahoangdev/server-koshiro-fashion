@@ -127,7 +127,7 @@ export class CloudinaryService {
 
       // Validate file type
       const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-      const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov', 'video/wmv'];
+      const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov', 'video/quicktime', 'video/wmv'];
       const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
       
       if (file.mimetype && !allowedTypes.includes(file.mimetype)) {
