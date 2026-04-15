@@ -1,5 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 export interface IColor extends Document {
   name: string; // Vietnamese name (primary)
   nameEn?: string; // English name
@@ -82,11 +84,12 @@ colorSchema.methods.getName = function (language: 'vi' | 'en' | 'ja' = 'vi'): st
 
 // Static method to find color by name (case-insensitive, any language)
 colorSchema.statics.findByName = async function (name: string) {
+  const escapedName = escapeRegExp(name);
   return this.findOne({
     $or: [
-      { name: { $regex: new RegExp(`^${name}$`, 'i') } },
-      { nameEn: { $regex: new RegExp(`^${name}$`, 'i') } },
-      { nameJa: { $regex: new RegExp(`^${name}$`, 'i') } }
+      { name: { $regex: new RegExp(`^${escapedName}$`, 'i') } },
+      { nameEn: { $regex: new RegExp(`^${escapedName}$`, 'i') } },
+      { nameJa: { $regex: new RegExp(`^${escapedName}$`, 'i') } }
     ]
   });
 };
