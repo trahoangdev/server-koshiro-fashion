@@ -14,22 +14,31 @@ interface EmailOptions {
 class EmailService {
     private transporter: nodemailer.Transporter;
     private queue: PQueue;
+    private configured: boolean;
 
     constructor() {
+        this.configured = Boolean(env.EMAIL_USER && env.EMAIL_PASS);
+
         // Initialize Nodemailer Transporter
         // Recommendation: Use environment variables for service configuration
-        this.transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: env.EMAIL_USER,
-                pass: env.EMAIL_PASS,
-            },
-        });
+        this.transporter = this.configured
+            ? nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: env.EMAIL_USER,
+                    pass: env.EMAIL_PASS,
+                },
+            })
+            : nodemailer.createTransport({ jsonTransport: true });
 
         // Initialize Queue with concurrency limit of 5 (adjust as needed)
         this.queue = new PQueue({ concurrency: 5 });
 
-        this.verifyConnection();
+        if (this.configured) {
+            this.verifyConnection();
+        } else {
+            logger.warn('Email service is disabled because EMAIL_USER or EMAIL_PASS is missing');
+        }
     }
 
     // Verify connection configuration
@@ -46,6 +55,11 @@ class EmailService {
      * Add email to queue for background sending
      */
     public async sendEmail(options: EmailOptions): Promise<void> {
+        if (!this.configured) {
+            logger.warn(`Email skipped because service is not configured: ${options.subject} -> ${options.to}`);
+            return;
+        }
+
         // Add job to queue
         await this.queue.add(async () => {
             try {
@@ -87,6 +101,10 @@ class EmailService {
      * Send Password Reset Email
      */
     public async sendPasswordResetEmail(to: string, resetToken: string): Promise<void> {
+        if (!this.configured) {
+            throw new Error('Email service is not configured. Cannot send password reset email.');
+        }
+
         const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${resetToken}`;
         const subject = 'Reset Your Password - Koshiro Fashion';
         const html = `

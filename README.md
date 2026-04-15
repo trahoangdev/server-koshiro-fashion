@@ -1,203 +1,375 @@
 # Koshiro Fashion Server
 
-Backend API cho ứng dụng thời trang Nhật Bản Koshiro Fashion.
+Backend API cho hệ thống thương mại điện tử Koshiro Fashion. Server được viết bằng Express + TypeScript, lưu trữ dữ liệu trên MongoDB thông qua Mongoose, phục vụ storefront React và admin dashboard.
 
-## 🚀 Công nghệ sử dụng
+## Tổng Quan
 
-- **Node.js** - Runtime environment
-- **Express.js** - Web framework
-- **MongoDB** - NoSQL database
-- **Mongoose** - MongoDB ODM
-- **TypeScript** - Type safety
-- **JWT** - Authentication
-- **bcryptjs** - Password hashing
+Server cung cấp các nhóm chức năng chính:
 
-## 📋 Yêu cầu hệ thống
+- Xác thực người dùng, admin, JWT, đổi mật khẩu và reset mật khẩu.
+- Quản lý sản phẩm, danh mục, màu sắc, media Cloudinary.
+- Giỏ hàng, wishlist, checkout, đơn hàng của khách và đơn hàng guest.
+- Admin dashboard, thống kê, analytics, reports, import/export.
+- Quản lý người dùng, vai trò, quyền truy cập theo RBAC.
+- Khuyến mãi, flash sale, review, notification, activity log.
+- Tồn kho, stock movements, vận chuyển, thanh toán, refund.
+- Swagger API documentation tại `/api-docs`.
 
-- Node.js 18+
-- MongoDB Atlas account
-- npm hoặc yarn
+## Tech Stack
 
-## 🛠️ Cài đặt
+- Runtime: Node.js 18+
+- Framework: Express.js
+- Language: TypeScript
+- Database: MongoDB + Mongoose
+- Authentication: JWT + bcryptjs
+- Validation: Zod, express-validator
+- Security: Helmet, CORS, express-mongo-sanitize, xss-clean, rate limit
+- Upload/media: Multer, Cloudinary
+- Logging: Winston, Morgan
+- Testing: Jest, ts-jest, Supertest
+- API docs: swagger-jsdoc, swagger-ui-express
 
-1. **Clone repository và cài đặt dependencies:**
+## Cấu Trúc Thư Mục
+
+```text
+Server/
+├── src/
+│   ├── config/          # env, database, swagger, cloudinary
+│   ├── constants/       # role constants
+│   ├── controllers/     # request handlers theo từng module
+│   ├── lib/             # logger
+│   ├── middleware/      # auth, authorization, rate limit, validate, upload
+│   ├── models/          # Mongoose schemas/models
+│   ├── routes/          # Express routers
+│   ├── scripts/         # seed scripts
+│   ├── services/        # email, cloudinary
+│   ├── tests/           # Jest tests
+│   ├── types/           # type declarations
+│   ├── utils/           # error handler, seed data
+│   └── index.ts         # app bootstrap và route mounting
+├── env.example
+├── jest.config.js
+├── package.json
+└── tsconfig.json
+```
+
+## Cài Đặt
+
 ```bash
-cd server
+cd Server
 npm install
 ```
 
-2. **Tạo file .env:**
-```bash
-# MongoDB Connection
+Tạo file `.env` trong thư mục `Server/`:
+
+```env
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database-name
-
-# JWT Secret
-JWT_SECRET=koshiro-fashion-secret-key-2024
-
-# Server Config
+JWT_SECRET=your-super-secret-jwt-key
+JWT_EXPIRE=7d
 PORT=3000
 NODE_ENV=development
+FRONTEND_URL=http://localhost:8080
+PRODUCTION_FRONTEND_URL=https://your-production-domain.com
+
+# Email reset password
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+
+# Cloudinary media upload
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
 ```
 
-3. **Seed dữ liệu mẫu:**
+Tham khảo đầy đủ trong `env.example`.
+
+## Scripts
+
+```bash
+npm run dev             # Chạy dev server bằng ts-node-dev
+npm run dev:clean       # Chạy script Powershell start-server.ps1 nếu có
+npm run dev:clean:bat   # Chạy start-server.bat nếu có
+npm run kill:node       # Dừng các Node process bằng script Powershell nếu có
+npm run build           # Compile TypeScript ra dist/
+npm start               # Chạy dist/index.js
+npm test                # Chạy Jest tests
+npm run seed            # Seed dữ liệu mẫu cơ bản
+```
+
+## Chạy Local
+
+```bash
+cd Server
+npm run dev
+```
+
+Mặc định server chạy tại:
+
+```text
+http://localhost:3000
+```
+
+Nếu port đang bận, server sẽ thử các port tiếp theo trong một khoảng nhỏ.
+
+Kiểm tra trạng thái:
+
+```text
+GET /health
+GET /api/status
+```
+
+Swagger UI:
+
+```text
+GET /api-docs
+```
+
+## Route Modules
+
+Những route đang được mount trong `src/index.ts`:
+
+```text
+/api/auth
+/api/products
+/api/categories
+/api/orders
+/api/cart
+/api/wishlist
+/api/reviews
+/api/admin
+/api/activity
+/api/notifications
+/api/settings
+/api/payment-methods
+/api/promotions
+/api/inventory
+/api/admin/shipping
+/api/admin/payments
+/api/flash-sales
+/api/roles
+/api/permissions
+/api/colors
+```
+
+Một số route file khác đã tồn tại nhưng cần được mount thêm nếu muốn sử dụng:
+
+```text
+src/routes/upload.ts
+src/routes/apiKeys.ts
+```
+
+## API Chính
+
+### Auth
+
+```text
+POST   /api/auth/register
+POST   /api/auth/login
+POST   /api/auth/admin/login
+POST   /api/auth/forgot-password
+POST   /api/auth/reset-password
+GET    /api/auth/profile
+PUT    /api/auth/profile
+POST   /api/auth/change-password
+DELETE /api/auth/account
+GET    /api/auth/addresses
+POST   /api/auth/addresses
+PUT    /api/auth/addresses/:id
+DELETE /api/auth/addresses/:id
+PUT    /api/auth/addresses/:id/default
+```
+
+### Products
+
+```text
+GET    /api/products
+GET    /api/products/featured
+GET    /api/products/search?q=query
+GET    /api/products/:id
+POST   /api/products
+PUT    /api/products/:id
+DELETE /api/products/:id
+POST   /api/products/upload-images
+DELETE /api/products/delete-images
+```
+
+### Categories
+
+```text
+GET    /api/categories
+GET    /api/categories/tree
+GET    /api/categories/slug/:slug
+GET    /api/categories/:id
+GET    /api/categories/:id/products
+POST   /api/categories
+PUT    /api/categories/:id
+DELETE /api/categories/:id
+POST   /api/categories/:id/upload-images
+DELETE /api/categories/:id/images/:publicId
+```
+
+### Orders
+
+```text
+GET    /api/orders/track/:orderNumber
+GET    /api/orders/track-email/:email
+POST   /api/orders/guest
+GET    /api/orders/my-orders
+GET    /api/orders/my-orders/:id
+POST   /api/orders
+PUT    /api/orders/:id/cancel
+GET    /api/orders
+GET    /api/orders/stats
+GET    /api/orders/:id
+POST   /api/orders/admin
+PUT    /api/orders/:id
+PUT    /api/orders/:id/status
+```
+
+### Admin
+
+```text
+GET    /api/admin/stats
+GET    /api/admin/revenue-data
+GET    /api/admin/product-stats
+GET    /api/admin/orders
+GET    /api/admin/orders/:orderId
+PUT    /api/admin/orders/:id
+PUT    /api/admin/orders/:id/status
+PUT    /api/admin/orders/:id/cancel
+DELETE /api/admin/orders/:id
+PUT    /api/admin/orders/bulk-status
+GET    /api/admin/orders/:orderId/print
+POST   /api/admin/orders/:orderId/email
+GET    /api/admin/products
+POST   /api/admin/products
+PUT    /api/admin/products/:id
+DELETE /api/admin/products/:id
+GET    /api/admin/categories
+POST   /api/admin/categories
+PUT    /api/admin/categories/:id
+DELETE /api/admin/categories/:id
+GET    /api/admin/users
+GET    /api/admin/users/:userId
+POST   /api/admin/users
+PUT    /api/admin/users/:id
+PUT    /api/admin/users/bulk-status
+DELETE /api/admin/users/:id
+GET    /api/admin/analytics
+GET    /api/admin/analytics/orders
+GET    /api/admin/analytics/customers
+GET    /api/admin/analytics/sales
+GET    /api/admin/analytics/products
+GET    /api/admin/analytics/daily-revenue
+POST   /api/admin/reports
+POST   /api/admin/export
+POST   /api/admin/import
+```
+
+### Commerce Modules
+
+```text
+/api/cart
+/api/wishlist
+/api/reviews
+/api/promotions
+/api/flash-sales
+/api/inventory
+/api/payment-methods
+/api/admin/payments
+/api/admin/shipping
+/api/notifications
+/api/settings
+/api/activity
+/api/roles
+/api/permissions
+/api/colors
+```
+
+## Database Models
+
+Model chính trong `src/models`:
+
+- `User`: tài khoản, role, trạng thái, địa chỉ, preference, thống kê mua hàng.
+- `Role`, `Permission`: RBAC theo resource/action và role level.
+- `Product`: sản phẩm đa ngôn ngữ, giá, media, variants, stock, SEO, badges.
+- `Category`: danh mục đa ngôn ngữ, cây cha-con, ảnh và banner.
+- `Order`: đơn hàng user/guest, items, địa chỉ, thanh toán, coupon/referral.
+- `Cart`, `Wishlist`: giỏ hàng và danh sách yêu thích theo user.
+- `Review`: đánh giá sản phẩm.
+- `Promotion`, `FlashSale`: coupon, khuyến mãi, giảm giá theo thời gian.
+- `Inventory`, `StockMovement`: tồn kho và lịch sử điều chỉnh.
+- `Settings`: cấu hình website, theme, shipping, notification.
+- `Notification`, `ActivityLog`: thông báo và audit log.
+- `ShippingMethod`, `Shipment`, `TrackingEvent`: vận chuyển và tracking.
+- `PaymentMethod`, `Transaction`, `Refund`: thanh toán admin, giao dịch, hoàn tiền.
+- `ApiKey`, `ApiLog`, `Integration`: API key và tích hợp hệ thống.
+- `Color`: bảng màu sản phẩm.
+
+## Bảo Mật
+
+Server áp dụng các lớp bảo vệ:
+
+- Helmet security headers.
+- CORS allowlist theo environment.
+- JWT bearer token cho protected routes.
+- Role check `Admin`, `Super Admin`, `Customer`.
+- RBAC theo `Role`/`Permission` cho một số module.
+- Rate limit riêng cho API chung, auth, admin, password reset, product listing.
+- Sanitize NoSQL injection bằng `express-mongo-sanitize`.
+- XSS sanitize bằng `xss-clean`.
+- Validate request body/params bằng Zod middleware.
+
+## Seed Dữ Liệu
+
+Seed dữ liệu mẫu:
+
 ```bash
 npm run seed
 ```
 
-4. **Chạy server:**
+Ngoài ra trong `src/scripts` có các script seed mở rộng:
+
+```text
+seedData.ts
+seedEnhancedData.ts
+seedRolesAndPermissions.ts
+```
+
+## Testing
+
 ```bash
-# Development
-npm run dev
-
-# Production
-npm run build
-npm start
+npm test
 ```
 
-## 📊 Cấu trúc Database
+Jest được cấu hình trong `jest.config.js`. Hiện có test mẫu cho order controller trong `src/tests/controllers`.
 
-### Collections
+## Build Production
 
-#### Users
-- Thông tin người dùng và admin
-- Authentication và authorization
-- Thống kê đơn hàng
-
-#### Categories
-- Danh mục sản phẩm
-- Hỗ trợ đa ngôn ngữ (VI, EN, JA)
-- Hierarchical structure
-
-#### Products
-- Thông tin sản phẩm
-- Hỗ trợ đa ngôn ngữ
-- Images, sizes, colors, tags
-- Stock management
-
-#### Orders
-- Đơn hàng của khách hàng
-- Order items với product details
-- Shipping và billing addresses
-- Payment status
-
-## 🔐 Authentication
-
-### JWT Token
-- Access token với thời hạn 7 ngày
-- Role-based access control (admin/customer)
-- Secure password hashing với bcrypt
-
-### Endpoints
-- `POST /api/auth/register` - Đăng ký khách hàng
-- `POST /api/auth/login` - Đăng nhập khách hàng
-- `POST /api/auth/admin/login` - Đăng nhập admin
-- `GET /api/auth/profile` - Lấy thông tin profile
-
-## 🛡️ Security
-
-- **Helmet** - Security headers
-- **CORS** - Cross-origin resource sharing
-- **Input validation** - Sanitize user inputs
-- **Rate limiting** - Prevent abuse
-- **JWT verification** - Secure API access
-
-## 📈 Performance
-
-- **MongoDB Indexes** - Optimized queries
-- **Connection pooling** - Efficient database connections
-- **Compression** - Reduced response size
-- **Caching** - Fast data retrieval
-
-## 🔧 Development
-
-### Scripts
-```bash
-npm run dev      # Development server với hot reload
-npm run build    # Build TypeScript
-npm run start    # Production server
-npm run seed     # Seed dữ liệu mẫu
-npm run test     # Run tests
-```
-
-### Environment Variables
-- `MONGODB_URI` - MongoDB connection string
-- `JWT_SECRET` - Secret key cho JWT
-- `PORT` - Server port (default: 3000)
-- `NODE_ENV` - Environment (development/production)
-
-## 📝 API Documentation
-
-### Base URL
-```
-http://localhost:3000/api
-```
-
-### Health Check
-```
-GET /api/health
-```
-
-### Authentication
-```
-POST /api/auth/register
-POST /api/auth/login
-POST /api/auth/admin/login
-GET /api/auth/profile
-```
-
-### Products
-```
-GET    /api/products                    - Get all products (with filters)
-GET    /api/products/featured           - Get featured products
-GET    /api/products/search?q=query     - Search products
-GET    /api/products/:id                - Get single product
-POST   /api/products                    - Create product (admin)
-PUT    /api/products/:id                - Update product (admin)
-DELETE /api/products/:id                - Delete product (admin)
-```
-
-### Categories
-```
-GET    /api/categories                  - Get all categories
-GET    /api/categories/tree             - Get category tree
-GET    /api/categories/slug/:slug       - Get category by slug
-GET    /api/categories/:id              - Get single category
-GET    /api/categories/:id/products     - Get category with products
-POST   /api/categories                  - Create category (admin)
-PUT    /api/categories/:id              - Update category (admin)
-DELETE /api/categories/:id              - Delete category (admin)
-```
-
-### Orders
-```
-GET    /api/orders                      - Get all orders (admin)
-GET    /api/orders/stats                - Get order statistics (admin)
-GET    /api/orders/:id                  - Get single order (admin)
-PUT    /api/orders/:id/status           - Update order status (admin)
-GET    /api/orders/my-orders            - Get user orders (customer)
-GET    /api/orders/my-orders/:id        - Get user order (customer)
-POST   /api/orders                      - Create order (customer)
-PUT    /api/orders/:id/cancel           - Cancel order (customer)
-```
-
-## 🚀 Deployment
-
-### Production Build
 ```bash
 npm run build
 npm start
 ```
 
-### Environment Variables
-Đảm bảo set các environment variables cho production:
-- `MONGODB_URI`
-- `JWT_SECRET`
-- `NODE_ENV=production`
+Cần đảm bảo production đã cấu hình các biến:
 
-## 📞 Support
+```text
+MONGODB_URI
+JWT_SECRET
+NODE_ENV=production
+FRONTEND_URL or PRODUCTION_FRONTEND_URL
+```
 
-Nếu có vấn đề, vui lòng tạo issue hoặc liên hệ team development.
+Nếu dùng upload Cloudinary hoặc reset password, cần thêm Cloudinary và Email env tương ứng.
 
-## 📄 License
+## Lưu Ý Hiện Trạng Code
 
-MIT License 
+- `GET /health` nằm ngoài prefix `/api`; client nếu cần health check nên gọi đúng endpoint này hoặc server cần thêm alias `/api/health`.
+- `src/routes/upload.ts` và `src/routes/apiKeys.ts` đã có code nhưng chưa được mount trong `src/index.ts`.
+- OAuth controller tồn tại, nhưng route OAuth chưa được expose trong `src/routes/auth.ts`.
+- `settings` route đang yêu cầu admin token; nếu frontend public cần settings, cần thiết kế lại public read endpoint.
+- Cần đồng bộ enum status đơn hàng giữa validation, model và frontend để tránh lỗi update trạng thái.
+
+## License
+
+MIT
