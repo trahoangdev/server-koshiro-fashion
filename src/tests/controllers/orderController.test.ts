@@ -81,6 +81,9 @@ describe('OrderController - createOrder', () => {
 
         await createOrder(mockReq as Request, mockRes as Response, next);
 
+        if (next.mock.calls.length > 0) {
+            throw next.mock.calls[0][0];
+        }
         expect(Product.findById).toHaveBeenCalledWith('prod1');
         expect(mockRes.status).toHaveBeenCalledWith(201);
         expect(mockRes.json).toHaveBeenCalled();
