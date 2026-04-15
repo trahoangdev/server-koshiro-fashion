@@ -74,27 +74,33 @@ const productSchema = new Schema({
   name: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    index: true
   },
   nameEn: {
     type: String,
-    trim: true
+    trim: true,
+    index: true
   },
   nameJa: {
     type: String,
-    trim: true
+    trim: true,
+    index: true
   },
   description: {
     type: String,
-    trim: true
+    trim: true,
+    index: true
   },
   descriptionEn: {
     type: String,
-    trim: true
+    trim: true,
+    index: true
   },
   descriptionJa: {
     type: String,
-    trim: true
+    trim: true,
+    index: true
   },
   price: {
     type: Number,
@@ -213,17 +219,17 @@ const productSchema = new Schema({
   // SEO fields
   slug: {
     type: String,
-    trim: true,
-    unique: false, // Remove unique from schema, use index instead
-    sparse: true
+    trim: true
   },
   metaTitle: {
     type: String,
-    trim: true
+    trim: true,
+    index: true
   },
   metaDescription: {
     type: String,
-    trim: true
+    trim: true,
+    index: true
   },
   // Additional product details
   weight: {
@@ -323,14 +329,15 @@ productSchema.index({ weight: 1 });
 productSchema.index({ materials: 1 });
 
 // Search indexes for better performance
-productSchema.index({ name: 1 });
-productSchema.index({ nameEn: 1 });
-productSchema.index({ nameJa: 1 });
-productSchema.index({ description: 1 });
-productSchema.index({ descriptionEn: 1 });
-productSchema.index({ descriptionJa: 1 });
-productSchema.index({ metaTitle: 1 });
-productSchema.index({ metaDescription: 1 });
+// productSchema.index({ name: 1 });
+// productSchema.index({ nameEn: 1 });
+// productSchema.index({ nameJa: 1 });
+// productSchema.index({ description: 1 });
+// productSchema.index({ descriptionEn: 1 });
+// productSchema.index({ descriptionJa: 1 });
+// productSchema.index({ metaTitle: 1 });
+// productSchema.index({ metaDescription: 1 });
+
 
 // Compound indexes for complex queries
 productSchema.index({ categoryId: 1, isActive: 1 });

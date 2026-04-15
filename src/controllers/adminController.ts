@@ -28,25 +28,26 @@ const updateCategoryProductCount = async (categoryId: string) => {
 // Get admin dashboard stats
 export const getAdminStats = asyncHandler(async (req: Request, res: Response) => {
   try {
-    logger.debug('Admin stats - Starting to get counts...');
+    // logger.debug('Admin stats - Starting to get counts...');
 
     // Get counts
     const totalOrders = await Order.countDocuments();
-    logger.debug(`Admin stats - Total orders: ${totalOrders}`);
+    // logger.debug(`Admin stats - Total orders: ${totalOrders}`);
 
     const totalProducts = await Product.countDocuments();
-    logger.debug(`Admin stats - Total products: ${totalProducts}`);
+    // logger.debug(`Admin stats - Total products: ${totalProducts}`);
 
     const totalUsers = await User.countDocuments();
-    logger.debug(`Admin stats - Total users: ${totalUsers}`);
+    // logger.debug(`Admin stats - Total users: ${totalUsers}`);
 
     // Calculate total revenue
-    logger.debug('Admin stats - Getting completed orders...');
+    // logger.debug('Admin stats - Getting completed orders...');
     const completedOrders = await Order.find({ status: 'completed' });
-    logger.debug(`Admin stats - Completed orders count: ${completedOrders.length}`);
+    // logger.debug(`Admin stats - Completed orders count: ${completedOrders.length}`);
 
     const totalRevenue = completedOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-    logger.debug(`Admin stats - Total revenue: ${totalRevenue}`);
+    // logger.debug(`Admin stats - Total revenue: ${totalRevenue}`);
+
 
     // Calculate trends (simplified - you can make this more sophisticated)
     const lastMonth = new Date();
@@ -98,7 +99,7 @@ export const getAdminStats = asyncHandler(async (req: Request, res: Response) =>
       revenueTrend: Math.round(revenueTrend * 100) / 100
     };
 
-    logger.debug('Admin stats - Response:', response);
+    // logger.debug('Admin stats - Response:', response);
     res.json(response);
   } catch (error) {
     logger.error('Error getting admin stats:', error);
@@ -247,7 +248,7 @@ export const getAdminUsers = asyncHandler(async (req: Request, res: Response) =>
 });
 // Get revenue data for chart
 export const getRevenueData = asyncHandler(async (req: Request, res: Response) => {
-  logger.debug('Getting revenue data for chart...');
+  // logger.debug('Getting revenue data for chart...');
 
   // Get last 6 months of revenue data
   const months = [];
@@ -282,12 +283,12 @@ export const getRevenueData = asyncHandler(async (req: Request, res: Response) =
     });
   }
 
-  logger.debug('Revenue data:', revenueData);
+  // logger.debug('Revenue data:', revenueData);
   res.json(revenueData);
 });
 // Get product statistics by category
 export const getProductStats = asyncHandler(async (req: Request, res: Response) => {
-  logger.debug('Getting product statistics...');
+  // logger.debug('Getting product statistics...');
 
   // Get all categories with their products and revenue
   const categories = await Category.find({ isActive: true });
@@ -329,7 +330,7 @@ export const getProductStats = asyncHandler(async (req: Request, res: Response) 
   // Sort by revenue descending
   productStats.sort((a, b) => b.revenue - a.revenue);
 
-  logger.debug('Product stats:', productStats);
+  // logger.debug('Product stats:', productStats);
   res.json(productStats);
 });
 // Product CRUD operations

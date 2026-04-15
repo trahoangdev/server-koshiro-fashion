@@ -45,7 +45,7 @@ export const getOrders = asyncHandler(async (req: Request, res: Response) => {
 
   const orders = await Order.find(filter)
     .populate('userId', 'name email phone')
-    .populate('items.productId', 'name nameEn nameJa images')
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages')
     .sort(sort)
     .skip(skip)
     .limit(limitNum);
@@ -76,7 +76,7 @@ export const getUserOrders = asyncHandler(async (req: Request, res: Response) =>
   const skip = (pageNum - 1) * limitNum;
 
   const orders = await Order.find({ userId })
-    .populate('items.productId', 'name nameEn nameJa images')
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limitNum);
@@ -101,7 +101,7 @@ export const getOrder = asyncHandler(async (req: Request, res: Response) => {
 
   const order = await Order.findById(id)
     .populate('userId', 'name email phone')
-    .populate('items.productId', 'name nameEn nameJa images');
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages');
 
   if (!order) {
     return res.status(404).json({ message: 'Order not found' });
@@ -127,7 +127,7 @@ export const trackOrder = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const order = await Order.findOne({ orderNumber: { $regex: orderNumber, $options: 'i' } })
-    .populate('items.productId', 'name nameEn nameJa images');
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages');
 
   if (!order) {
     return res.status(404).json({ message: 'Order not found' });
@@ -147,7 +147,7 @@ export const trackOrderByEmail = asyncHandler(async (req: Request, res: Response
       match: { email: email },
       select: 'name email phone'
     })
-    .populate('items.productId', 'name nameEn nameJa images')
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages')
     .sort({ createdAt: -1 });
 
   // Filter out orders where userId didn't match
@@ -158,7 +158,7 @@ export const trackOrderByEmail = asyncHandler(async (req: Request, res: Response
     guestEmail: email.toLowerCase().trim(),
     isGuestOrder: true
   })
-    .populate('items.productId', 'name nameEn nameJa images')
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages')
     .sort({ createdAt: -1 });
 
   // Combine and sort
@@ -489,7 +489,7 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
     { new: true, runValidators: true }
   )
     .populate('userId', 'name email phone')
-    .populate('items.productId', 'name nameEn nameJa images');
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages');
 
   if (!order) {
     return res.status(404).json({ message: 'Order not found' });

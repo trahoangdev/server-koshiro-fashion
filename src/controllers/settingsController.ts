@@ -77,39 +77,39 @@ export const updateSettings = asyncHandler(async (req: Request, res: Response) =
     timezone,
     currency,
     language,
-    
+
     // Notification Settings
     emailNotifications,
     orderNotifications,
     stockNotifications,
     customerNotifications,
     adminNotifications,
-    
+
     // Security Settings
     sessionTimeout,
     passwordMinLength,
     requireTwoFactor,
     maxLoginAttempts,
     enableCaptcha,
-    
+
     // Payment Settings
     stripeEnabled,
     paypalEnabled,
     cashOnDelivery,
     bankTransfer,
-    
+
     // Shipping Settings
     freeShippingThreshold,
     defaultShippingCost,
     enableTracking,
     shippingZones,
-    
+
     // Appearance Settings
     theme,
     primaryColor,
     logoUrl,
     faviconUrl,
-    
+
     // System Settings (legacy)
     enableDarkMode,
     maintenanceMode,
@@ -117,7 +117,7 @@ export const updateSettings = asyncHandler(async (req: Request, res: Response) =
   } = req.body;
 
   let settings = await Settings.findOne();
-  
+
   if (!settings) {
     settings = new Settings();
   }
@@ -131,27 +131,27 @@ export const updateSettings = asyncHandler(async (req: Request, res: Response) =
   if (timezone !== undefined) settings.timezone = timezone;
   if (currency !== undefined) settings.currency = currency;
   if (language !== undefined) settings.language = language;
-  
+
   // Update Notification Settings
   if (emailNotifications !== undefined) settings.emailNotifications = emailNotifications;
   if (orderNotifications !== undefined) settings.orderNotifications = orderNotifications;
   if (stockNotifications !== undefined) settings.stockNotifications = stockNotifications;
   if (customerNotifications !== undefined) settings.customerNotifications = customerNotifications;
   if (adminNotifications !== undefined) settings.adminNotifications = adminNotifications;
-  
+
   // Update Security Settings
   if (sessionTimeout !== undefined) settings.sessionTimeout = sessionTimeout;
   if (passwordMinLength !== undefined) settings.passwordMinLength = passwordMinLength;
   if (requireTwoFactor !== undefined) settings.requireTwoFactor = requireTwoFactor;
   if (maxLoginAttempts !== undefined) settings.maxLoginAttempts = maxLoginAttempts;
   if (enableCaptcha !== undefined) settings.enableCaptcha = enableCaptcha;
-  
+
   // Update Payment Settings
   if (stripeEnabled !== undefined) settings.stripeEnabled = stripeEnabled;
   if (paypalEnabled !== undefined) settings.paypalEnabled = paypalEnabled;
   if (cashOnDelivery !== undefined) settings.cashOnDelivery = cashOnDelivery;
   if (bankTransfer !== undefined) settings.bankTransfer = bankTransfer;
-  
+
   // Update Shipping Settings
   if (freeShippingThreshold !== undefined) settings.freeShippingThreshold = freeShippingThreshold;
   if (defaultShippingCost !== undefined) settings.defaultShippingCost = defaultShippingCost;
@@ -159,13 +159,15 @@ export const updateSettings = asyncHandler(async (req: Request, res: Response) =
   if (shippingZones !== undefined && Array.isArray(shippingZones)) {
     settings.shippingZones = shippingZones;
   }
-  
+
   // Update Appearance Settings
   if (theme !== undefined) settings.theme = theme;
   if (primaryColor !== undefined) settings.primaryColor = primaryColor;
   if (logoUrl !== undefined) settings.logoUrl = logoUrl;
+
   if (faviconUrl !== undefined) settings.faviconUrl = faviconUrl;
-  
+  if (req.body.banners !== undefined) settings.banners = req.body.banners;
+
   // Update System Settings (legacy)
   if (enableDarkMode !== undefined) settings.enableDarkMode = enableDarkMode;
   if (maintenanceMode !== undefined) settings.maintenanceMode = maintenanceMode;

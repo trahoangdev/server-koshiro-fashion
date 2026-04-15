@@ -18,11 +18,11 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
-  logger.debug('Auth middleware - Headers', { hasAuth: !!authHeader });
-  logger.debug('Auth middleware - Token', { hasToken: !!token });
+  //   logger.debug('Auth middleware - Headers', { hasAuth: !!authHeader });
+  //   logger.debug('Auth middleware - Token', { hasToken: !!token });
 
   if (!token) {
-    logger.debug('Auth middleware - No token provided');
+    // logger.debug('Auth middleware - No token provided');
     return res.status(401).json({ message: 'Access token required' });
   }
 
@@ -33,7 +33,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
       role: string;
       name?: string;
     };
-    logger.debug('Auth middleware - Decoded token', { userId: decoded.userId, email: decoded.email, role: decoded.role });
+    // logger.debug('Auth middleware - Decoded token', { userId: decoded.userId, email: decoded.email, role: decoded.role });
 
     req.user = {
       id: decoded.userId,

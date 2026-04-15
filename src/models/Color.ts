@@ -35,7 +35,7 @@ const colorSchema = new Schema<IColor>({
     required: true,
     trim: true,
     validate: {
-      validator: function(v: string) {
+      validator: function (v: string) {
         return /^#[0-9A-Fa-f]{6}$/.test(v) || /^#[0-9A-Fa-f]{3}$/.test(v);
       },
       message: 'Invalid hex color format. Must be #RRGGBB or #RGB'
@@ -56,21 +56,18 @@ const colorSchema = new Schema<IColor>({
 });
 
 // Indexes for better query performance
-colorSchema.index({ name: 1 });
-colorSchema.index({ nameEn: 1 });
-colorSchema.index({ nameJa: 1 });
 colorSchema.index({ hexValue: 1 });
 colorSchema.index({ isActive: 1, isDefault: 1 });
 
 // Virtual for usage count (can be calculated separately if needed)
-colorSchema.virtual('usageCount').get(function() {
+colorSchema.virtual('usageCount').get(function () {
   // This would need to be calculated via aggregation
   // For now, we'll leave it as a placeholder
   return 0;
 });
 
 // Method to get color name based on language
-colorSchema.methods.getName = function(language: 'vi' | 'en' | 'ja' = 'vi'): string {
+colorSchema.methods.getName = function (language: 'vi' | 'en' | 'ja' = 'vi'): string {
   switch (language) {
     case 'vi':
       return this.name;
@@ -84,7 +81,7 @@ colorSchema.methods.getName = function(language: 'vi' | 'en' | 'ja' = 'vi'): str
 };
 
 // Static method to find color by name (case-insensitive, any language)
-colorSchema.statics.findByName = async function(name: string) {
+colorSchema.statics.findByName = async function (name: string) {
   return this.findOne({
     $or: [
       { name: { $regex: new RegExp(`^${name}$`, 'i') } },
@@ -95,7 +92,7 @@ colorSchema.statics.findByName = async function(name: string) {
 };
 
 // Static method to get all active colors
-colorSchema.statics.getActiveColors = function() {
+colorSchema.statics.getActiveColors = function () {
   return this.find({ isActive: true }).sort({ name: 1 });
 };
 
