@@ -68,6 +68,7 @@ JWT_SECRET=your-super-secret-jwt-key
 JWT_EXPIRE=7d
 PORT=3000
 NODE_ENV=development
+TRUST_PROXY=false
 FRONTEND_URL=http://localhost:8080
 PRODUCTION_FRONTEND_URL=https://your-production-domain.com
 
@@ -87,12 +88,14 @@ Tham khảo đầy đủ trong `env.example`.
 
 ```bash
 npm run dev             # Chạy dev server bằng ts-node-dev
-npm run dev:clean       # Chạy script Powershell start-server.ps1 nếu có
-npm run dev:clean:bat   # Chạy start-server.bat nếu có
-npm run kill:node       # Dừng các Node process bằng script Powershell nếu có
 npm run build           # Compile TypeScript ra dist/
 npm start               # Chạy dist/index.js
 npm test                # Chạy Jest tests
+npm run contract:check  # Kiểm tra contract OpenAPI tối thiểu
+npm run env:production:check # Kiểm tra env production bắt buộc trước deploy
+npm run openapi:export  # Xuất OpenAPI contract ra openapi.json
+npm run audit           # Chạy npm audit ở mức moderate trở lên
+npm run verify          # Build, test, contract check và audit dùng cho CI/local release check
 npm run seed            # Seed dữ liệu mẫu cơ bản
 ```
 
@@ -115,6 +118,7 @@ Kiểm tra trạng thái:
 
 ```text
 GET /health
+GET /api/health
 GET /api/status
 ```
 
@@ -122,6 +126,12 @@ Swagger UI:
 
 ```text
 GET /api-docs
+```
+
+Kiểm tra contract OpenAPI không cần kết nối database:
+
+```bash
+npm run contract:check
 ```
 
 ## Route Modules
@@ -149,13 +159,8 @@ Những route đang được mount trong `src/index.ts`:
 /api/roles
 /api/permissions
 /api/colors
-```
-
-Một số route file khác đã tồn tại nhưng cần được mount thêm nếu muốn sử dụng:
-
-```text
-src/routes/upload.ts
-src/routes/apiKeys.ts
+/api/upload
+/api/admin/api
 ```
 
 ## API Chính
@@ -316,6 +321,7 @@ Server áp dụng các lớp bảo vệ:
 - Role check `Admin`, `Super Admin`, `Customer`.
 - RBAC theo `Role`/`Permission` cho một số module.
 - Rate limit riêng cho API chung, auth, admin, password reset, product listing.
+- `TRUST_PROXY` mặc định `false`; khi deploy sau một proxy/load balancer tin cậy, đặt số hop cụ thể như `1`, không dùng `true`.
 - Sanitize NoSQL injection bằng `express-mongo-sanitize`.
 - XSS sanitize bằng `xss-clean`.
 - Validate request body/params bằng Zod middleware.
@@ -358,17 +364,18 @@ MONGODB_URI
 JWT_SECRET
 NODE_ENV=production
 FRONTEND_URL or PRODUCTION_FRONTEND_URL
+TRUST_PROXY=false or a concrete trusted proxy hop count, for example TRUST_PROXY=1
 ```
 
 Nếu dùng upload Cloudinary hoặc reset password, cần thêm Cloudinary và Email env tương ứng.
 
-## Lưu Ý Hiện Trạng Code
+Kiểm tra env production trước deploy:
 
-- `GET /health` nằm ngoài prefix `/api`; client nếu cần health check nên gọi đúng endpoint này hoặc server cần thêm alias `/api/health`.
-- `src/routes/upload.ts` và `src/routes/apiKeys.ts` đã có code nhưng chưa được mount trong `src/index.ts`.
-- OAuth controller tồn tại, nhưng route OAuth chưa được expose trong `src/routes/auth.ts`.
-- `settings` route đang yêu cầu admin token; nếu frontend public cần settings, cần thiết kế lại public read endpoint.
-- Cần đồng bộ enum status đơn hàng giữa validation, model và frontend để tránh lỗi update trạng thái.
+```bash
+NODE_ENV=production npm run env:production:check
+```
+
+Script này kiểm tra các biến bắt buộc cho production gồm MongoDB, JWT, frontend URL, Cloudinary và email reset password. `TRUST_PROXY=true` bị chặn; hãy dùng `false` hoặc số hop cụ thể như `1`.
 
 ## License
 
