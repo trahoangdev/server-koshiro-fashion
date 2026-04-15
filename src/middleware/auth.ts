@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { logger } from '../lib/logger';
 import { UserRole } from '../constants/roles';
+import { User } from '../models/User';
+import { IRole } from '../models/Role';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -46,13 +48,45 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   }
 };
 
-export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+const resolveFreshUserRole = async (req: Request, res: Response): Promise<string | null> => {
   if (!req.user) {
-    return res.status(401).json({ message: 'Authentication required' });
+    res.status(401).json({ message: 'Authentication required' });
+    return null;
   }
 
-  // Handle both string and object role formats
-  const userRole = typeof req.user.role === 'string' ? req.user.role : req.user.role?.name;
+  try {
+    const user = await User.findById(req.user.id).populate('role');
+    if (!user) {
+      res.status(401).json({ message: 'User not found' });
+      return null;
+    }
+
+    if (user.status && user.status !== 'active') {
+      res.status(403).json({ message: 'User account is not active', status: user.status });
+      return null;
+    }
+
+    const roleName = typeof user.role === 'string'
+      ? user.role
+      : (user.role as unknown as IRole)?.name;
+
+    if (!roleName) {
+      res.status(403).json({ message: 'User role is missing' });
+      return null;
+    }
+
+    req.user.role = roleName;
+    return roleName;
+  } catch (error) {
+    logger.error('Auth middleware - Failed to resolve current user role', error);
+    res.status(500).json({ message: 'Failed to verify user permissions' });
+    return null;
+  }
+};
+
+export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  const userRole = await resolveFreshUserRole(req, res);
+  if (!userRole) return;
 
   if (userRole !== UserRole.ADMIN && userRole !== UserRole.SUPER_ADMIN) {
     return res.status(403).json({
@@ -65,13 +99,9 @@ export const requireAdmin = (req: Request, res: Response, next: NextFunction) =>
   next();
 };
 
-export const requireCustomer = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.user) {
-    return res.status(401).json({ message: 'Authentication required' });
-  }
-
-  // Handle both string and object role formats
-  const userRole = typeof req.user.role === 'string' ? req.user.role : req.user.role?.name;
+export const requireCustomer = async (req: Request, res: Response, next: NextFunction) => {
+  const userRole = await resolveFreshUserRole(req, res);
+  if (!userRole) return;
 
   if (userRole !== UserRole.CUSTOMER) {
     return res.status(403).json({
@@ -84,13 +114,9 @@ export const requireCustomer = (req: Request, res: Response, next: NextFunction)
   next();
 };
 
-export const requireCustomerOrAdmin = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.user) {
-    return res.status(401).json({ message: 'Authentication required' });
-  }
-
-  // Handle both string and object role formats
-  const userRole = typeof req.user.role === 'string' ? req.user.role : req.user.role?.name;
+export const requireCustomerOrAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  const userRole = await resolveFreshUserRole(req, res);
+  if (!userRole) return;
 
   if (userRole !== UserRole.CUSTOMER && userRole !== UserRole.ADMIN && userRole !== UserRole.SUPER_ADMIN) {
     return res.status(403).json({
@@ -104,26 +130,25 @@ export const requireCustomerOrAdmin = (req: Request, res: Response, next: NextFu
 };
 
 export const authorizeRoles = (roles: string[]) => (req: Request, res: Response, next: NextFunction) => {
-  if (!req.user) {
-    return res.status(401).json({ message: 'Authentication required' });
-  }
+  resolveFreshUserRole(req, res)
+    .then((userRole) => {
+      if (!userRole) return;
 
-  // Handle both string and object role formats
-  const userRole = typeof req.user.role === 'string' ? req.user.role : req.user.role?.name;
+      if (!roles.includes(userRole)) {
+        return res.status(403).json({
+          message: 'Insufficient permissions',
+          userRole: userRole,
+          requiredRoles: roles
+        });
+      }
 
-  if (!userRole || !roles.includes(userRole)) {
-    return res.status(403).json({
-      message: 'Insufficient permissions',
-      userRole: userRole,
-      requiredRoles: roles
-    });
-  }
-
-  next();
+      next();
+    })
+    .catch(next);
 };
 
 // Async handler wrapper to catch errors
 export const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) => (req: Request, res: Response, next: NextFunction) => {
-  Promise.resolve(fn(req, res, next)).catch(next);
+  return Promise.resolve(fn(req, res, next)).catch(next);
 };
 
