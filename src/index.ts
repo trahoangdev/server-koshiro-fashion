@@ -39,6 +39,8 @@ const app = express();
 // Port configuration
 const PORT = env.PORT;
 
+app.set('trust proxy', env.TRUST_PROXY);
+
 // Middleware
 app.use(helmet({
   contentSecurityPolicy: {

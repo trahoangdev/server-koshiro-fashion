@@ -5,12 +5,14 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "dev:clean": "powershell -ExecutionPolicy Bypass -File start-server.ps1",
-    "dev:clean:bat": "start-server.bat",
-    "kill:node": "powershell -ExecutionPolicy Bypass -File kill-node-processes.ps1",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "jest",
+    "audit": "npm audit --audit-level=moderate",
+    "contract:check": "ts-node src/scripts/openapiContract.ts",
+    "env:production:check": "ts-node src/scripts/validateProductionEnv.ts",
+    "openapi:export": "ts-node src/scripts/openapiContract.ts --export",
+    "verify": "npm run build && npm test && npm run contract:check && npm run audit",
     "seed": "ts-node src/scripts/seedData.ts"
   },
   "dependencies": {
