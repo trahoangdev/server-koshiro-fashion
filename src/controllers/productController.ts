@@ -229,6 +229,7 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
     categoryId,
     images,
     cloudinaryImages: requestCloudinaryImages,
+    videos,
     sizes,
     colors,
     stock,
@@ -318,6 +319,7 @@ export const createProduct = asyncHandler(async (req: Request, res: Response) =>
     categoryId,
     images: images || [], // Legacy field for backward compatibility
     cloudinaryImages, // New Cloudinary images
+    videos: Array.isArray(videos) ? videos : [],
     sizes: sizes || [],
     colors: colors || [],
     stock: stock || 0,
