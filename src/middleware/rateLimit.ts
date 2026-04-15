@@ -1,52 +1,22 @@
-import rateLimit, { Options } from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { Request, Response } from 'express';
 
 /**
  * Helper function to check if request should skip rate limiting
  */
 const shouldSkipRateLimit = (req: Request): boolean => {
-  // Skip rate limiting in development
-  if (process.env.NODE_ENV === 'development') {
+  // Health probes must remain available even when the API is saturated.
+  const isHealthCheck = ['/health', '/api/health', '/status', '/api/status'].includes(req.path);
+  if (isHealthCheck) {
     return true;
   }
 
-  // Skip for localhost/IPs
+  if (process.env.NODE_ENV === 'production') {
+    return false;
+  }
+
   const ip = req.ip || req.socket.remoteAddress || '';
-  const isLocalhost = ip === '127.0.0.1' ||
-    ip === '::1' ||
-    ip === '::ffff:127.0.0.1' ||
-    ip.startsWith('192.168.') ||
-    ip.startsWith('10.') ||
-    ip.startsWith('172.16.') ||
-    ip.startsWith('172.17.') ||
-    ip.startsWith('172.18.') ||
-    ip.startsWith('172.19.') ||
-    ip.startsWith('172.20.') ||
-    ip.startsWith('172.21.') ||
-    ip.startsWith('172.22.') ||
-    ip.startsWith('172.23.') ||
-    ip.startsWith('172.24.') ||
-    ip.startsWith('172.25.') ||
-    ip.startsWith('172.26.') ||
-    ip.startsWith('172.27.') ||
-    ip.startsWith('172.28.') ||
-    ip.startsWith('172.29.') ||
-    ip.startsWith('172.30.') ||
-    ip.startsWith('172.31.');
-
-  // Skip for health checks
-  const isHealthCheck = req.path === '/health' || req.path === '/api/status';
-
-  return isLocalhost || isHealthCheck;
-};
-
-
-/**
- * Safe key generator dealing with potential IPv6 issues
- * Returns req.ip or string "unknown"
- */
-const safeKeyGenerator = (req: Request): string => {
-  return req.ip || 'unknown';
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
 };
 
 const commonRateLimitResponse = (req: Request, res: Response) => {
@@ -109,14 +79,8 @@ export const authLimiter = rateLimit({
   skip: shouldSkipRateLimit,
   // Use IP + email for more granular rate limiting
   keyGenerator: (req: Request) => {
-    // Skip rate limiting for localhost/development - return unique key to bypass
-    if (shouldSkipRateLimit(req)) {
-      return `${Date.now()}-${Math.random()}`;
-    }
-
-    const email = req.body?.email || req.body?.username || '';
-    const ip = req.ip || 'unknown';
-    return `${ip}-${email}`;
+    const email = String(req.body?.email || req.body?.username || '').trim().toLowerCase();
+    return `${ipKeyGenerator(req.ip || 'unknown')}-${email}`;
   },
   validate: {
     trustProxy: false,
