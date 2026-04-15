@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/auth';
 import Permission, { IPermission } from '../models/Permission';
 import Role from '../models/Role';
+import { clearUserPermissionCache } from '../middleware/authorization';
 
 // Types for better type safety
 interface PermissionResponse {
@@ -174,6 +175,7 @@ export const createPermission = asyncHandler(async (req: Request, res: Response)
     });
 
     await permission.save();
+    clearUserPermissionCache();
 
     res.status(201).json({
       success: true,
@@ -256,6 +258,7 @@ export const updatePermission = asyncHandler(async (req: Request, res: Response)
       cleanedUpdateData,
       { new: true, runValidators: true }
     );
+    clearUserPermissionCache();
 
     res.json({
       success: true,
@@ -317,6 +320,7 @@ export const deletePermission = asyncHandler(async (req: Request, res: Response)
     }
     
     await Permission.findByIdAndDelete(id);
+    clearUserPermissionCache();
 
     res.json({ 
       success: true,
@@ -494,6 +498,10 @@ export const bulkCreatePermissions = asyncHandler(async (req: Request, res: Resp
       } catch (error) {
         errors.push(`Permission ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
+    }
+
+    if (createdPermissions.length > 0) {
+      clearUserPermissionCache();
     }
 
     res.status(201).json({

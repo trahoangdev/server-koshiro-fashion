@@ -49,12 +49,12 @@ router.get('/product-stats', getProductStats);
 
 // Orders management
 router.get('/orders', getAdminOrders);
+router.put('/orders/bulk-status', bulkUpdateOrderStatus);
 router.get('/orders/:orderId', getOrderDetails);
 router.put('/orders/:id', updateOrder);
 router.put('/orders/:id/status', updateOrderStatus);
 router.put('/orders/:id/cancel', cancelOrder);
 router.delete('/orders/:id', deleteOrder);
-router.put('/orders/bulk-status', bulkUpdateOrderStatus);
 router.get('/orders/:orderId/print', printOrder);
 router.post('/orders/:orderId/email', sendOrderEmail);
 
@@ -72,10 +72,12 @@ router.delete('/categories/:id', deleteCategory);
 
 // Users management
 router.get('/users', getAdminUsers);
-router.get('/users/:userId', getUserById);
 router.post('/users', createUser);
-router.put('/users/:id', updateUser);
 router.put('/users/bulk-status', bulkUpdateUserStatus);
+router.patch('/users/bulk-status', bulkUpdateUserStatus);
+router.get('/users/:userId', getUserById);
+router.put('/users/:id', updateUser);
+router.patch('/users/:id/status', updateUser);
 router.delete('/users/:id', deleteUser);
 
 // Analytics and Reports

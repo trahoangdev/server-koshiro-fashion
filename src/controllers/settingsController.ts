@@ -2,8 +2,7 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '../middleware/auth';
 import { Settings } from '../models/Settings';
 
-// Get system settings
-export const getSettings = asyncHandler(async (req: Request, res: Response) => {
+const getOrCreateSettings = async () => {
   let settings = await Settings.findOne();
 
   // If no settings exist, create default settings
@@ -11,6 +10,57 @@ export const getSettings = asyncHandler(async (req: Request, res: Response) => {
     settings = new Settings();
     await settings.save();
   }
+
+  return settings;
+};
+
+// Get public settings used by storefront/runtime UI.
+export const getPublicSettings = asyncHandler(async (req: Request, res: Response) => {
+  const settings = await getOrCreateSettings();
+
+  res.json({
+    _id: settings._id,
+    websiteName: settings.websiteName,
+    websiteDescription: settings.websiteDescription,
+    contactEmail: settings.contactEmail,
+    contactPhone: settings.contactPhone,
+    address: settings.address,
+    timezone: settings.timezone,
+    currency: settings.currency,
+    language: settings.language,
+    emailNotifications: settings.emailNotifications,
+    orderNotifications: settings.orderNotifications,
+    stockNotifications: settings.stockNotifications,
+    customerNotifications: settings.customerNotifications,
+    adminNotifications: settings.adminNotifications,
+    sessionTimeout: settings.sessionTimeout,
+    passwordMinLength: settings.passwordMinLength,
+    requireTwoFactor: settings.requireTwoFactor,
+    maxLoginAttempts: settings.maxLoginAttempts,
+    enableCaptcha: settings.enableCaptcha,
+    stripeEnabled: settings.stripeEnabled,
+    paypalEnabled: settings.paypalEnabled,
+    cashOnDelivery: settings.cashOnDelivery,
+    bankTransfer: settings.bankTransfer,
+    freeShippingThreshold: settings.freeShippingThreshold,
+    defaultShippingCost: settings.defaultShippingCost,
+    enableTracking: settings.enableTracking,
+    shippingZones: settings.shippingZones,
+    theme: settings.theme,
+    primaryColor: settings.primaryColor,
+    logoUrl: settings.logoUrl,
+    faviconUrl: settings.faviconUrl,
+    enableDarkMode: settings.enableDarkMode,
+    maintenanceMode: settings.maintenanceMode,
+    debugMode: settings.debugMode,
+    createdAt: settings.createdAt,
+    updatedAt: settings.updatedAt
+  });
+});
+
+// Get system settings
+export const getSettings = asyncHandler(async (req: Request, res: Response) => {
+  const settings = await getOrCreateSettings();
 
   res.json(settings);
 });

@@ -1,14 +1,32 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import CloudinaryService from '../services/cloudinaryService';
+import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = express.Router();
+const videoUploadDir = path.resolve(process.cwd(), 'uploads', 'videos');
+
+fs.mkdirSync(videoUploadDir, { recursive: true });
+
+const cleanupFiles = (files: Express.Multer.File[] = []) => {
+  files.forEach((file) => {
+    if (file.path) {
+      fs.promises.unlink(file.path).catch(() => {
+        // Ignore cleanup failures; upload result is already determined.
+      });
+    }
+  });
+};
+
+router.use(authenticateToken);
+router.use(requireAdmin);
 
 // Configure multer for video uploads
 const videoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/videos/');
+    cb(null, videoUploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -41,7 +59,9 @@ router.post('/videos', videoUpload.array('videos', 5), async (req, res) => {
       });
     }
 
-    const uploadResult = await CloudinaryService.uploadProductVideos(req.files as Express.Multer.File[]);
+    const files = req.files as Express.Multer.File[];
+    const uploadResult = await CloudinaryService.uploadProductVideos(files);
+    cleanupFiles(files);
     
     if (uploadResult.success && uploadResult.data) {
       res.json({
@@ -57,6 +77,7 @@ router.post('/videos', videoUpload.array('videos', 5), async (req, res) => {
       });
     }
   } catch (error) {
+    cleanupFiles(Array.isArray(req.files) ? req.files as Express.Multer.File[] : []);
     console.error('Video upload error:', error);
     res.status(500).json({
       success: false,
@@ -77,6 +98,7 @@ router.post('/video', videoUpload.single('video'), async (req, res) => {
     }
 
     const uploadResult = await CloudinaryService.uploadVideo(req.file);
+    cleanupFiles([req.file]);
     
     if (uploadResult.success && uploadResult.data) {
       res.json({
@@ -92,6 +114,9 @@ router.post('/video', videoUpload.single('video'), async (req, res) => {
       });
     }
   } catch (error) {
+    if (req.file) {
+      cleanupFiles([req.file]);
+    }
     console.error('Video upload error:', error);
     res.status(500).json({
       success: false,

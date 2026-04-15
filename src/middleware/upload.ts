@@ -1,31 +1,8 @@
 import multer from 'multer';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
-import { v2 as cloudinary } from 'cloudinary';
 import { Request, Response, NextFunction } from 'express';
-import { 
-  uploadOptions, 
-  productUploadOptions, 
-  categoryUploadOptions,
-  avatarUploadOptions,
-  bannerUploadOptions 
-} from '../config/cloudinary';
-
-// Type definitions for better type safety
-interface CloudinaryTransformation {
-  quality?: string;
-  fetch_format?: string;
-  width?: number;
-  height?: number;
-  crop?: string;
-  gravity?: string;
-}
-
-interface CloudinaryParams {
-  folder: string;
-  allowed_formats: string[];
-  transformation?: CloudinaryTransformation[];
-  tags?: string[];
-}
+import fs from 'fs';
+import path from 'path';
+import { uploadOptions } from '../config/cloudinary';
 
 interface FileInfo {
   originalName: string;
@@ -36,17 +13,28 @@ interface FileInfo {
 }
 
 /**
- * Multer configuration for Cloudinary storage
+ * Multer configuration for local temp storage.
+ * Controllers upload these files through CloudinaryService, then the service removes temp files.
  */
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: uploadOptions.folder,
-    allowed_formats: uploadOptions.allowed_formats,
-    transformation: uploadOptions.transformation,
-    tags: uploadOptions.tags,
-  } as CloudinaryParams,
+const uploadTempDir = path.join(process.cwd(), 'uploads', 'temp');
+const ensureUploadDir = (dir: string) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+};
+
+const createDiskStorage = (subfolder: string) => multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const destination = path.join(uploadTempDir, subfolder);
+    ensureUploadDir(destination);
+    cb(null, destination);
+  },
+  filename: (_req, file, cb) => {
+    cb(null, generateUniqueFilename(file.originalname));
+  }
 });
+
+const storage = createDiskStorage('general');
 
 /**
  * Default multer configuration
@@ -82,15 +70,7 @@ export const upload = multer({
 /**
  * Product images upload configuration
  */
-const productStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: productUploadOptions.folder,
-    allowed_formats: productUploadOptions.allowed_formats,
-    transformation: productUploadOptions.transformation,
-    tags: productUploadOptions.tags,
-  } as CloudinaryParams,
-});
+const productStorage = createDiskStorage('products');
 
 export const uploadProductImages = multer({
   storage: productStorage,
@@ -122,15 +102,7 @@ export const uploadProductImages = multer({
 /**
  * Category images upload configuration
  */
-const categoryStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: categoryUploadOptions.folder,
-    allowed_formats: categoryUploadOptions.allowed_formats,
-    transformation: categoryUploadOptions.transformation,
-    tags: categoryUploadOptions.tags,
-  } as CloudinaryParams,
-});
+const categoryStorage = createDiskStorage('categories');
 
 export const uploadCategoryImages = multer({
   storage: categoryStorage,
@@ -158,15 +130,7 @@ export const uploadCategoryImages = multer({
 /**
  * Avatar upload configuration
  */
-const avatarStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: avatarUploadOptions.folder,
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    transformation: avatarUploadOptions.transformation,
-    tags: avatarUploadOptions.tags,
-  } as CloudinaryParams,
-});
+const avatarStorage = createDiskStorage('avatars');
 
 export const uploadAvatar = multer({
   storage: avatarStorage,
@@ -193,15 +157,7 @@ export const uploadAvatar = multer({
 /**
  * Banner upload configuration
  */
-const bannerStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: bannerUploadOptions.folder,
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    transformation: bannerUploadOptions.transformation,
-    tags: bannerUploadOptions.tags,
-  } as CloudinaryParams,
-});
+const bannerStorage = createDiskStorage('banners');
 
 export const uploadBanner = multer({
   storage: bannerStorage,
@@ -345,9 +301,9 @@ export const getFileExtension = (filename: string): string => {
 /**
  * Helper function to generate unique filename
  */
-export const generateUniqueFilename = (originalName: string): string => {
+export function generateUniqueFilename(originalName: string): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 15);
   const extension = getFileExtension(originalName);
   return `${timestamp}_${random}.${extension}`;
-};
+}

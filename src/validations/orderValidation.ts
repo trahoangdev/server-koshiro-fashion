@@ -33,7 +33,7 @@ export const createOrderSchema = z.object({
         couponCode: z.string().optional(),
         referralCode: z.string().optional(),
         // Admin specific optional fields
-        status: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'refunded']).optional(),
+        status: z.enum(['pending', 'processing', 'shipped', 'delivered', 'completed', 'cancelled', 'returned', 'refunded']).optional(),
         paymentStatus: z.enum(['pending', 'paid', 'failed', 'refunded']).optional(),
         trackingNumber: z.string().optional(),
         userId: z.string().optional(), // For admin creating order for user
@@ -81,7 +81,7 @@ export const updateOrderStatusSchema = z.object({
         id: z.string().min(1, "Order ID is required")
     }),
     body: z.object({
-        status: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'refunded']).optional(),
+        status: z.enum(['pending', 'processing', 'shipped', 'delivered', 'completed', 'cancelled', 'returned', 'refunded']).optional(),
         paymentStatus: z.enum(['pending', 'paid', 'failed', 'refunded']).optional(),
         notes: z.string().optional()
     })

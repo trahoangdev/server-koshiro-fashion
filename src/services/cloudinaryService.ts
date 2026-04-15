@@ -1,4 +1,6 @@
 import { v2 as cloudinary, UploadApiResponse, UploadApiErrorResponse, ResourceApiResponse } from 'cloudinary';
+import fs from 'fs/promises';
+import path from 'path';
 import { 
   uploadOptions, 
   productUploadOptions, 
@@ -64,6 +66,26 @@ interface TransformOptions {
   gravity?: string;
   radius?: number;
   effect?: string;
+}
+
+const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+
+async function cleanupLocalUpload(filePath?: string): Promise<void> {
+  if (!filePath) return;
+
+  const resolvedPath = path.resolve(filePath);
+  if (!resolvedPath.startsWith(uploadsRoot + path.sep)) {
+    return;
+  }
+
+  try {
+    await fs.unlink(resolvedPath);
+  } catch (error: unknown) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code !== 'ENOENT') {
+      console.warn('Failed to remove temporary upload file:', nodeError.message);
+    }
+  }
 }
 
 /**
@@ -197,6 +219,8 @@ export class CloudinaryService {
         success: false,
         error: error instanceof Error ? error.message : 'Upload failed',
       };
+    } finally {
+      await cleanupLocalUpload(file.path);
     }
   }
 

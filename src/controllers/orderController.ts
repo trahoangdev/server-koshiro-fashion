@@ -3,6 +3,7 @@ import { Order, generateOrderNumber } from '../models/Order';
 import { Product } from '../models/Product';
 import { User } from '../models/User';
 import Promotion from '../models/Promotion';
+import { logger } from '../lib/logger';
 
 
 
@@ -45,7 +46,7 @@ export const getOrders = asyncHandler(async (req: Request, res: Response) => {
 
   const orders = await Order.find(filter)
     .populate('userId', 'name email phone')
-    .populate('items.productId', 'name nameEn nameJa images')
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages')
     .sort(sort)
     .skip(skip)
     .limit(limitNum);
@@ -76,7 +77,7 @@ export const getUserOrders = asyncHandler(async (req: Request, res: Response) =>
   const skip = (pageNum - 1) * limitNum;
 
   const orders = await Order.find({ userId })
-    .populate('items.productId', 'name nameEn nameJa images')
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limitNum);
@@ -101,7 +102,7 @@ export const getOrder = asyncHandler(async (req: Request, res: Response) => {
 
   const order = await Order.findById(id)
     .populate('userId', 'name email phone')
-    .populate('items.productId', 'name nameEn nameJa images');
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages');
 
   if (!order) {
     return res.status(404).json({ message: 'Order not found' });
@@ -127,7 +128,7 @@ export const trackOrder = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const order = await Order.findOne({ orderNumber: { $regex: orderNumber, $options: 'i' } })
-    .populate('items.productId', 'name nameEn nameJa images');
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages');
 
   if (!order) {
     return res.status(404).json({ message: 'Order not found' });
@@ -147,7 +148,7 @@ export const trackOrderByEmail = asyncHandler(async (req: Request, res: Response
       match: { email: email },
       select: 'name email phone'
     })
-    .populate('items.productId', 'name nameEn nameJa images')
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages')
     .sort({ createdAt: -1 });
 
   // Filter out orders where userId didn't match
@@ -158,7 +159,7 @@ export const trackOrderByEmail = asyncHandler(async (req: Request, res: Response
     guestEmail: email.toLowerCase().trim(),
     isGuestOrder: true
   })
-    .populate('items.productId', 'name nameEn nameJa images')
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages')
     .sort({ createdAt: -1 });
 
   // Combine and sort
@@ -175,9 +176,9 @@ export const trackOrderByEmail = asyncHandler(async (req: Request, res: Response
 
 // Create new order
 export const createOrder = asyncHandler(async (req: Request, res: Response) => {
-  console.log('[CreateOrder] Request received');
+  logger.debug('[CreateOrder] Request received');
   if (!req.user) {
-    console.warn('[CreateOrder] No user in request');
+    logger.debug('[CreateOrder] No user in request');
     return res.status(401).json({ message: 'Authentication required' });
   }
 
@@ -196,7 +197,7 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
     referralCode
   } = req.body;
 
-  console.log('[CreateOrder] Body parsed. Items:', items?.length, 'Coupon:', couponCode);
+  logger.debug('[CreateOrder] Body parsed', { itemCount: items?.length, couponCode });
 
   // Determine the actual userId to use
   let userId: string;
@@ -209,24 +210,28 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Calculate total and validate products
-  console.log('[CreateOrder] Validating items for user:', userId);
+  logger.debug('[CreateOrder] Validating items', { userId });
   let subtotal = 0;
   const orderItems = [];
 
   for (const item of items) {
     const product = await Product.findById(item.productId);
     if (!product) {
-      console.error(`[CreateOrder] Product ${item.productId} not found`);
+      logger.debug('[CreateOrder] Product not found', { productId: item.productId });
       return res.status(400).json({ message: `Product ${item.productId} not found` });
     }
 
     if (!product.isActive) {
-      console.error(`[CreateOrder] Product ${product.name} inactive`);
+      logger.debug('[CreateOrder] Product inactive', { productId: product._id, productName: product.name });
       return res.status(400).json({ message: `Product ${product.name} is not available` });
     }
 
     if (product.stock < item.quantity) {
-      console.error(`[CreateOrder] Insufficient stock. Stock: ${product.stock}, Req: ${item.quantity}`);
+      logger.debug('[CreateOrder] Insufficient stock', {
+        productId: product._id,
+        stock: product.stock,
+        requestedQuantity: item.quantity
+      });
       return res.status(400).json({
         message: `Insufficient stock for ${product.name}. Available: ${product.stock}`
       });
@@ -246,13 +251,13 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
     });
 
     // Update product stock
-    console.log(`[CreateOrder] Updating stock for ${product.name}`);
+    logger.debug('[CreateOrder] Updating stock', { productId: product._id, productName: product.name });
     await Product.findByIdAndUpdate(product._id, {
       $inc: { stock: -item.quantity }
     });
   }
 
-  console.log(`[CreateOrder] Subtotal: ${subtotal}`);
+  logger.debug('[CreateOrder] Subtotal calculated', { subtotal });
 
   // Calculate Discount, Shipping, Tax, and Total
   let discountAmount = 0;
@@ -261,7 +266,7 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
 
   // Apply Coupon Code
   if (couponCode) {
-    console.log(`[CreateOrder] Applying coupon: ${couponCode}`);
+    logger.debug('[CreateOrder] Applying coupon', { couponCode });
     const promotion = await Promotion.findOne({ code: couponCode.toUpperCase() });
 
     if (promotion && promotion.isActive) {
@@ -284,20 +289,24 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
         }
 
         // Increment used count
-        console.log(`[CreateOrder] Incrementing promo usage`);
+        logger.debug('[CreateOrder] Incrementing promo usage', { promotionId: promotion._id });
         await Promotion.findByIdAndUpdate(promotion._id, { $inc: { usedCount: 1 } });
       } else {
-        console.warn(`[CreateOrder] Invalid promo conditions. Date:${isValidDate}, Limit:${isValidLimit}, Min:${isValidMinOrder}`);
+        logger.debug('[CreateOrder] Invalid promo conditions', {
+          isValidDate,
+          isValidLimit,
+          isValidMinOrder
+        });
       }
     }
   }
 
   const totalAmount = subtotal + shippingCost + taxAmount - discountAmount;
-  console.log(`[CreateOrder] Final Total: ${totalAmount}`);
+  logger.debug('[CreateOrder] Final total calculated', { totalAmount });
 
   // Generate unique order number
   const orderNumber = await generateOrderNumber();
-  console.log(`[CreateOrder] Order Number: ${orderNumber}`);
+  logger.debug('[CreateOrder] Order number generated', { orderNumber });
 
   // Prepare order data
   const orderData: any = {
@@ -324,11 +333,11 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
     if (trackingNumber) orderData.trackingNumber = trackingNumber;
   }
 
-  console.log('[CreateOrder] Saving order...');
+  logger.debug('[CreateOrder] Saving order');
   const order = new Order(orderData);
 
   await order.save();
-  console.log('[CreateOrder] Order saved!');
+  logger.debug('[CreateOrder] Order saved');
 
   // Update user statistics
   await User.findByIdAndUpdate(userId, {
@@ -346,7 +355,7 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
 
 // Create guest order (no authentication required)
 export const createGuestOrder = asyncHandler(async (req: Request, res: Response) => {
-  console.log('[CreateGuestOrder] Request received');
+  logger.debug('[CreateGuestOrder] Request received');
   const {
     email,
     items,
@@ -364,24 +373,28 @@ export const createGuestOrder = asyncHandler(async (req: Request, res: Response)
 
 
   // Calculate total and validate products
-  console.log('[CreateOrder] Validating items:', items?.length);
+  logger.debug('[CreateGuestOrder] Validating items', { itemCount: items?.length });
   let subtotal = 0;
   const orderItems = [];
 
   for (const item of items) {
     const product = await Product.findById(item.productId);
     if (!product) {
-      console.error(`[CreateOrder] Product ${item.productId} not found`);
+      logger.debug('[CreateGuestOrder] Product not found', { productId: item.productId });
       return res.status(400).json({ message: `Product ${item.productId} not found` });
     }
 
     if (!product.isActive) {
-      console.error(`[CreateOrder] Product ${product.name} inactive`);
+      logger.debug('[CreateGuestOrder] Product inactive', { productId: product._id, productName: product.name });
       return res.status(400).json({ message: `Product ${product.name} is not available` });
     }
 
     if (product.stock < item.quantity) {
-      console.error(`[CreateOrder] Insufficient stock for ${product.name}`);
+      logger.debug('[CreateGuestOrder] Insufficient stock', {
+        productId: product._id,
+        stock: product.stock,
+        requestedQuantity: item.quantity
+      });
       return res.status(400).json({
         message: `Insufficient stock for ${product.name}. Available: ${product.stock}`
       });
@@ -489,7 +502,7 @@ export const updateOrderStatus = asyncHandler(async (req: Request, res: Response
     { new: true, runValidators: true }
   )
     .populate('userId', 'name email phone')
-    .populate('items.productId', 'name nameEn nameJa images');
+    .populate('items.productId', 'name nameEn nameJa images cloudinaryImages');
 
   if (!order) {
     return res.status(404).json({ message: 'Order not found' });

@@ -8,6 +8,7 @@ import { ActivityLog } from '../models/ActivityLog';
 import { Notification } from '../models/Notification';
 import { Review } from '../models/Review';
 import { logger } from '../lib/logger';
+import { clearUserPermissionCache } from '../middleware/authorization';
 
 // Helper function to update product count for categories
 const updateCategoryProductCount = async (categoryId: string) => {
@@ -496,6 +497,7 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   if (!user) {
     return res.status(404).json({ message: 'User not found' });
   }
+  clearUserPermissionCache(id);
 
   // Transform to match frontend interface
   const userResponse = {

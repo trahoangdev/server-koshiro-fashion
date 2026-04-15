@@ -76,7 +76,6 @@ export const apiLimiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   handler: commonRateLimitResponse,
   skip: shouldSkipRateLimit,
-  keyGenerator: safeKeyGenerator,
   validate: {
     trustProxy: false
   }
@@ -120,7 +119,8 @@ export const authLimiter = rateLimit({
     return `${ip}-${email}`;
   },
   validate: {
-    trustProxy: false
+    trustProxy: false,
+    ip: false
   }
 });
 
@@ -143,7 +143,6 @@ export const adminLimiter = rateLimit({
   legacyHeaders: false,
   handler: commonRateLimitResponse,
   skip: shouldSkipRateLimit,
-  keyGenerator: safeKeyGenerator,
   validate: {
     trustProxy: false
   }
@@ -175,7 +174,6 @@ export const passwordResetLimiter = rateLimit({
     });
   },
   skip: shouldSkipRateLimit,
-  keyGenerator: safeKeyGenerator,
   validate: {
     trustProxy: false
   }
@@ -207,7 +205,6 @@ export const productLimiter = rateLimit({
     });
   },
   skip: shouldSkipRateLimit,
-  keyGenerator: safeKeyGenerator,
   validate: {
     trustProxy: false
   }

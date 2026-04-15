@@ -181,13 +181,24 @@ export const getProducts = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-// Get single product by ID
+import mongoose from 'mongoose';
+
+// Get single product by ID or Slug
 export const getProduct = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { trackView } = req.query; // Optional query param to track view
 
-  const product = await Product.findById(id)
-    .populate('categoryId', 'name nameEn nameJa slug');
+  let product;
+
+  // Check if it's a valid ObjectId
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    product = await Product.findById(id).populate('categoryId', 'name nameEn nameJa slug');
+  }
+
+  // If not found by ID, try calculating by slug
+  if (!product) {
+    product = await Product.findOne({ slug: id }).populate('categoryId', 'name nameEn nameJa slug');
+  }
 
   if (!product) {
     throw errors.notFound('Product not found');
@@ -195,7 +206,8 @@ export const getProduct = asyncHandler(async (req: Request, res: Response) => {
 
   // Track view if requested
   if (trackView === 'true') {
-    await Product.findByIdAndUpdate(id, { $inc: { views: 1 } });
+    // We already have the product document, so we can use its _id safely
+    await Product.findByIdAndUpdate(product._id, { $inc: { views: 1 } });
   }
 
   res.json({ product });

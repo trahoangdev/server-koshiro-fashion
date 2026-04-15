@@ -3,6 +3,7 @@ import { asyncHandler } from '../middleware/auth';
 import Role, { IRole } from '../models/Role';
 import Permission from '../models/Permission';
 import { User } from '../models/User';
+import { clearUserPermissionCache } from '../middleware/authorization';
 
 // Types for better type safety
 interface RoleResponse {
@@ -181,6 +182,7 @@ export const createRole = asyncHandler(async (req: Request, res: Response) => {
 
     await role.save();
     await role.populate('permissions', 'name nameEn nameJa resource action category');
+    clearUserPermissionCache();
 
     res.status(201).json({
       success: true,
@@ -277,6 +279,7 @@ export const updateRole = asyncHandler(async (req: Request, res: Response) => {
       cleanedUpdateData,
       { new: true, runValidators: true }
     ).populate('permissions', 'name nameEn nameJa resource action category');
+    clearUserPermissionCache();
 
     res.json({
       success: true,
@@ -338,6 +341,7 @@ export const deleteRole = asyncHandler(async (req: Request, res: Response) => {
     }
     
     await Role.findByIdAndDelete(id);
+    clearUserPermissionCache();
 
     res.json({ 
       success: true,
@@ -461,6 +465,7 @@ export const cloneRole = asyncHandler(async (req: Request, res: Response) => {
 
     await clonedRole.save();
     await clonedRole.populate('permissions', 'name nameEn nameJa resource action category');
+    clearUserPermissionCache();
 
     res.status(201).json({
       success: true,
