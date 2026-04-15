@@ -1,5 +1,5 @@
 import winston from 'winston';
-import 'winston-daily-rotate-file';
+import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
 
 // Define levels and colors
@@ -45,7 +45,7 @@ const transports = [
   }),
 
   // Rotating File transport for errors
-  new winston.transports.DailyRotateFile({
+  new DailyRotateFile({
     filename: path.join(process.cwd(), 'logs/error-%DATE%.log'),
     datePattern: 'YYYY-MM-DD',
     zippedArchive: true,
@@ -56,7 +56,7 @@ const transports = [
   }),
 
   // Rotating File transport for all logs
-  new winston.transports.DailyRotateFile({
+  new DailyRotateFile({
     filename: path.join(process.cwd(), 'logs/all-%DATE%.log'),
     datePattern: 'YYYY-MM-DD',
     zippedArchive: true,
