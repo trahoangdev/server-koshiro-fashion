@@ -40,7 +40,7 @@ const videoUpload = multer({
     fileSize: 100 * 1024 * 1024, // 100MB limit for videos
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov', 'video/wmv'];
+    const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov', 'video/quicktime', 'video/wmv'];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
